@@ -1,26 +1,71 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf7ef;
+  --foreground: #1f241f;
+
+  --color-ivory: #faf7ef;
+  --color-ink: #1f241f;
+  --color-muted: #8a8578;
+  --color-muted-dark: #5b5748;
+  --color-brand: #046205;
+  --color-brand-dark: #034d04;
+  --color-brand-soft: #eef3e8;
+  --color-brand-soft-ink: #3a4a34;
+  --color-card-border: rgba(0, 0, 0, 0.06);
+  --color-input-border: #e5ded0;
+  --color-track: #eee8d8;
+  --color-dashed: #d9d2c2;
+  --color-divider: #f2eee2;
+  --color-x-icon: #c9c3b4;
+  --color-carb: #7a9c5b;
+  --color-fat: #c2a25c;
+  --color-danger: #c24d1e;
+  --color-meal-breakfast: #046205;
+  --color-meal-lunch: #3f7a2e;
+  --color-meal-dinner: #7a9c5b;
+  --color-meal-snack: #c2a25c;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-ivory: var(--color-ivory);
+  --color-ink: var(--color-ink);
+  --color-muted: var(--color-muted);
+  --color-muted-dark: var(--color-muted-dark);
+  --color-brand: var(--color-brand);
+  --color-brand-dark: var(--color-brand-dark);
+  --color-brand-soft: var(--color-brand-soft);
+  --color-brand-soft-ink: var(--color-brand-soft-ink);
+  --color-card-border: var(--color-card-border);
+  --color-input-border: var(--color-input-border);
+  --color-track: var(--color-track);
+  --color-dashed: var(--color-dashed);
+  --color-divider: var(--color-divider);
+  --color-x-icon: var(--color-x-icon);
+  --color-carb: var(--color-carb);
+  --color-fat: var(--color-fat);
+  --color-danger: var(--color-danger);
+  --color-meal-breakfast: var(--color-meal-breakfast);
+  --color-meal-lunch: var(--color-meal-lunch);
+  --color-meal-dinner: var(--color-meal-dinner);
+  --color-meal-snack: var(--color-meal-snack);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+a {
+  color: var(--color-brand);
+}
+a:hover {
+  color: var(--color-brand-dark);
+}
+::placeholder {
+  color: var(--color-muted);
 }

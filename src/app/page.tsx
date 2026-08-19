@@ -16,7 +16,7 @@ export default function Home() {
   }, [loading, user, onboardingCompleted, router]);
 
   return (
-    <div className="flex flex-1 items-center justify-center text-sm text-neutral-400">
+    <div className="flex flex-1 items-center justify-center bg-ivory text-sm text-muted">
       불러오는 중...
     </div>
   );

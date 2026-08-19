@@ -1,10 +1,10 @@
 // Firestore layout (per user, under users/{uid}):
 //   goals/current            -> Goal
-//   workoutLogs/{id}         -> WorkoutLog
+//   settings/gym             -> GymSettings (보유 기구, 즐겨찾기 운동)
+//   workoutLogs/{id}         -> WorkoutLog (근력 + 유산소/애플피트니스 통합)
 //   dietLogs/{id}            -> DietLog
-//   fridgeItems/{id}         -> FridgeItem      (식단추천 - 준비중)
-//   inbodyRecords/{id}       -> InbodyRecord    (인바디 관리 - 준비중)
-//   favoriteExercises/{id}   -> FavoriteExercise (관리자 메뉴 - 준비중)
+//   fridgeItems/{id}         -> FridgeItem
+//   inbodyRecords/{id}       -> InbodyRecord
 
 export type GoalMode = "calorie" | "protein" | "both";
 
@@ -46,25 +46,20 @@ export type WorkoutSource = "manual" | "apple-fitness";
 export interface WorkoutLog {
   id: string;
   date: string; // yyyy-MM-dd
-  exerciseId: string;
-  exerciseName: string;
-  sets: WorkoutSetEntry[];
-  source: WorkoutSource;
-  notes?: string;
-  createdAt: string; // ISO
-}
-
-// Cardio / Apple Fitness style entries (파싱된 결과), 같은 workoutLogs 컬렉션에 별도 문서로 저장 가능
-export interface CardioLog {
-  id: string;
-  date: string;
-  activityType: string;
-  durationMin: number;
+  kind: "strength" | "cardio";
+  // strength
+  exerciseId?: string;
+  exerciseName?: string;
+  sets?: WorkoutSetEntry[];
+  // cardio (애플 피트니스 파싱 결과 등)
+  activityType?: string;
+  durationMin?: number;
   caloriesBurned?: number;
   distanceKm?: number;
   avgHeartRate?: number;
   source: WorkoutSource;
-  createdAt: string;
+  notes?: string;
+  createdAt: string; // ISO
 }
 
 export interface MealItem {
@@ -76,9 +71,12 @@ export interface MealItem {
   fatG: number;
 }
 
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
 export interface DietLog {
   id: string;
   date: string; // yyyy-MM-dd
+  mealType: MealType;
   rawInput: string;
   meals: MealItem[];
   totalCalories: number;
@@ -92,7 +90,7 @@ export interface FridgeItem {
   id: string;
   name: string;
   quantity: string;
-  expiryDate?: string;
+  expiryDate?: string; // yyyy-MM-dd
   addedAt: string;
 }
 
@@ -106,4 +104,9 @@ export interface InbodyRecord {
   imageUrl?: string;
   source: "manual" | "ocr";
   createdAt: string;
+}
+
+export interface GymSettings {
+  equipment: string[];
+  favoriteExerciseIds: string[];
 }

@@ -1,94 +1,155 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
-import { addDietLog, getDietLogsForDate, getGoal } from "@/lib/data";
-import { ChatDietInput } from "@/components/diet/ChatDietInput";
-import { GoalBar } from "@/components/goals/GoalBar";
-import type { DietLog, Goal, MealItem } from "@/types";
+import {
+  addDietLog,
+  getDietLogsForDate,
+  getDietLogsForDateRange,
+  getGoal,
+  updateDietLog,
+} from "@/lib/data";
+import { dayLabel, todayStr, weekDatesForOffset } from "@/lib/date-utils";
+import { WeekCalendar } from "@/components/shared/WeekCalendar";
+import { MacroSummaryCard } from "@/components/diet/MacroSummaryCard";
+import { MealBarChart } from "@/components/diet/MealBarChart";
+import { MealButtons } from "@/components/diet/MealButtons";
+import { DietRecordingPanel } from "@/components/diet/DietRecordingPanel";
+import { DietDiaryEntries } from "@/components/diet/DietDiaryEntries";
+import type { DietLog, Goal, MealItem, MealType } from "@/types";
 
 export default function DietPage() {
   const { user } = useAuth();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(todayStr());
   const [goal, setGoal] = useState<Goal | null>(null);
-  const [logs, setLogs] = useState<DietLog[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [weekEntries, setWeekEntries] = useState<DietLog[]>([]);
+  const [dayEntries, setDayEntries] = useState<DietLog[]>([]);
+  const [recordingMeal, setRecordingMeal] = useState<MealType | null>(null);
+  const [editingLog, setEditingLog] = useState<DietLog | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    getGoal(user.uid).then(setGoal);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
     let ignore = false;
-    Promise.all([getGoal(user.uid), getDietLogsForDate(user.uid, today)])
-      .then(([g, l]) => {
-        if (ignore) return;
-        setGoal(g);
-        setLogs(l);
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
+    const dates = weekDatesForOffset(weekOffset);
+    getDietLogsForDateRange(user.uid, dates[0], dates[6]).then((logs) => {
+      if (!ignore) setWeekEntries(logs);
+    });
     return () => {
       ignore = true;
     };
-  }, [user, today]);
+  }, [user, weekOffset]);
 
-  async function handleConfirm(meals: MealItem[], rawInput: string) {
+  useEffect(() => {
     if (!user) return;
-    await addDietLog(user.uid, { date: today, rawInput, meals });
-    const [g, l] = await Promise.all([getGoal(user.uid), getDietLogsForDate(user.uid, today)]);
-    setGoal(g);
-    setLogs(l);
+    let ignore = false;
+    getDietLogsForDate(user.uid, selectedDate).then((logs) => {
+      if (!ignore) setDayEntries(logs);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [user, selectedDate]);
+
+  function refreshDay(date: string) {
+    if (!user) return;
+    getDietLogsForDate(user.uid, date).then(setDayEntries);
+    const dates = weekDatesForOffset(weekOffset);
+    getDietLogsForDateRange(user.uid, dates[0], dates[6]).then(setWeekEntries);
   }
 
-  const consumedCalories = logs.reduce((sum, l) => sum + l.totalCalories, 0);
-  const consumedProtein = logs.reduce((sum, l) => sum + l.totalProteinG, 0);
+  function selectDate(date: string) {
+    setSelectedDate(date);
+    setRecordingMeal(null);
+    setEditingLog(null);
+  }
+
+  function toggleMeal(meal: MealType) {
+    if (recordingMeal === meal) {
+      setRecordingMeal(null);
+      setEditingLog(null);
+    } else {
+      setRecordingMeal(meal);
+      setEditingLog(null);
+    }
+  }
+
+  function editEntry(entry: DietLog) {
+    setRecordingMeal(entry.mealType);
+    setEditingLog(entry);
+  }
+
+  async function handleSave(meals: MealItem[], rawInput: string) {
+    if (!user || !recordingMeal) return;
+    if (editingLog) {
+      await updateDietLog(user.uid, editingLog.id, { rawInput, meals });
+    } else {
+      await addDietLog(user.uid, { date: selectedDate, mealType: recordingMeal, rawInput, meals });
+    }
+    refreshDay(selectedDate);
+    setRecordingMeal(null);
+    setEditingLog(null);
+  }
+
+  const dayCalories = dayEntries.reduce((sum, l) => sum + l.totalCalories, 0);
+  const dayProtein = dayEntries.reduce((sum, l) => sum + l.totalProteinG, 0);
+  const dayCarbs = dayEntries.reduce((sum, l) => sum + l.totalCarbsG, 0);
+  const dayFat = dayEntries.reduce((sum, l) => sum + l.totalFatG, 0);
+  const calorieTarget = goal?.calorieTarget ?? 0;
+  const proteinTarget = goal?.proteinTarget ?? 0;
+  const carbTarget = Math.round((calorieTarget * 0.45) / 4);
+  const fatTarget = Math.round((calorieTarget * 0.25) / 9);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">식단 기록</h1>
-        <p className="mt-1 text-sm text-neutral-500">먹은 내용을 편하게 입력하면 알아서 분석해드려요.</p>
+        <div className="text-xl font-bold text-ink">식단 기록</div>
+        <p className="mt-0.5 text-[13px] text-muted">요일별로 먹은 내용을 기록하고 탄/단/지를 확인해요.</p>
       </div>
 
-      {!loading && goal && (
-        <section className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-5">
-          {(goal.mode === "calorie" || goal.mode === "both") && goal.calorieTarget && (
-            <GoalBar label="칼로리" consumed={consumedCalories} target={goal.calorieTarget} unit="kcal" />
-          )}
-          {(goal.mode === "protein" || goal.mode === "both") && goal.proteinTarget && (
-            <GoalBar label="단백질" consumed={consumedProtein} target={goal.proteinTarget} unit="g" />
-          )}
-        </section>
+      <WeekCalendar
+        weekOffset={weekOffset}
+        selectedDate={selectedDate}
+        hasEntry={(date) => weekEntries.some((e) => e.date === date)}
+        onSelectDate={selectDate}
+        onPrevWeek={() => setWeekOffset((o) => o - 1)}
+        onNextWeek={() => setWeekOffset((o) => o + 1)}
+      />
+
+      <div className="text-[13px] font-bold text-muted-dark">{dayLabel(selectedDate)}</div>
+
+      <MacroSummaryCard
+        rows={[
+          { label: "칼로리", consumed: dayCalories, target: calorieTarget, unit: "kcal", color: "var(--color-brand)" },
+          { label: "단백질", consumed: dayProtein, target: proteinTarget, unit: "g", color: "var(--color-brand)" },
+          { label: "탄수화물", consumed: dayCarbs, target: carbTarget, unit: "g", color: "var(--color-carb)" },
+          { label: "지방", consumed: dayFat, target: fatTarget, unit: "g", color: "var(--color-fat)" },
+        ]}
+      />
+
+      <MealBarChart entries={dayEntries} />
+
+      <MealButtons activeMeal={recordingMeal} onSelect={toggleMeal} />
+
+      {recordingMeal && (
+        <DietRecordingPanel
+          mealType={recordingMeal}
+          initialText={editingLog?.rawInput ?? ""}
+          isEditing={!!editingLog}
+          onClose={() => {
+            setRecordingMeal(null);
+            setEditingLog(null);
+          }}
+          onSave={handleSave}
+        />
       )}
 
-      <ChatDietInput onConfirm={handleConfirm} />
-
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold text-neutral-700">오늘 기록 ({logs.length})</h2>
-        {loading ? (
-          <p className="text-sm text-neutral-400">불러오는 중...</p>
-        ) : logs.length === 0 ? (
-          <p className="text-sm text-neutral-400">아직 기록이 없어요.</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {logs.map((log) => (
-              <div key={log.id} className="rounded-xl border border-neutral-200 bg-white p-4">
-                <p className="text-sm text-neutral-600">{log.rawInput}</p>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-neutral-400">
-                  {log.meals.map((m, i) => (
-                    <span key={i}>
-                      {m.name} {Math.round(m.calories)}kcal
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs font-medium text-neutral-500">
-                  합계 {Math.round(log.totalCalories)}kcal · 단백질 {Math.round(log.totalProteinG)}g
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      <DietDiaryEntries entries={dayEntries} onEdit={editEntry} />
     </div>
   );
 }

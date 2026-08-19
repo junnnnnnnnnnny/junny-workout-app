@@ -9,11 +9,19 @@
       ]
     },
     {
+      "collectionGroup": "workoutLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "dietLogs",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "date", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     }
   ],

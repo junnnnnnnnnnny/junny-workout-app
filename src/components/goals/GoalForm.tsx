@@ -3,10 +3,10 @@
 import { useState } from "react";
 import type { Goal, GoalMode } from "@/types";
 
-const MODE_OPTIONS: { value: GoalMode; label: string; hint: string }[] = [
-  { value: "calorie", label: "칼로리만", hint: "하루 목표 칼로리만 관리" },
-  { value: "protein", label: "단백질만", hint: "하루 목표 단백질량만 관리" },
-  { value: "both", label: "칼로리 + 단백질", hint: "둘 다 목표로 관리 (추천)" },
+const MODE_OPTIONS: { value: GoalMode; label: string }[] = [
+  { value: "calorie", label: "칼로리만" },
+  { value: "protein", label: "단백질만" },
+  { value: "both", label: "칼로리 + 단백질" },
 ];
 
 interface GoalFormProps {
@@ -17,15 +17,9 @@ interface GoalFormProps {
 
 export function GoalForm({ initialGoal, submitLabel, onSubmit }: GoalFormProps) {
   const [mode, setMode] = useState<GoalMode>(initialGoal?.mode ?? "both");
-  const [calorieTarget, setCalorieTarget] = useState(
-    initialGoal?.calorieTarget?.toString() ?? ""
-  );
-  const [proteinTarget, setProteinTarget] = useState(
-    initialGoal?.proteinTarget?.toString() ?? ""
-  );
-  const [targetWeightKg, setTargetWeightKg] = useState(
-    initialGoal?.targetWeightKg?.toString() ?? ""
-  );
+  const [calorieTarget, setCalorieTarget] = useState(initialGoal?.calorieTarget?.toString() ?? "");
+  const [proteinTarget, setProteinTarget] = useState(initialGoal?.proteinTarget?.toString() ?? "");
+  const [targetWeightKg, setTargetWeightKg] = useState(initialGoal?.targetWeightKg?.toString() ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +29,6 @@ export function GoalForm({ initialGoal, submitLabel, onSubmit }: GoalFormProps) 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-
     if (needsCalorie && !calorieTarget) {
       setError("목표 칼로리를 입력해주세요.");
       return;
@@ -44,7 +37,6 @@ export function GoalForm({ initialGoal, submitLabel, onSubmit }: GoalFormProps) 
       setError("목표 단백질량을 입력해주세요.");
       return;
     }
-
     setSubmitting(true);
     try {
       await onSubmit({
@@ -54,93 +46,74 @@ export function GoalForm({ initialGoal, submitLabel, onSubmit }: GoalFormProps) 
         targetWeightKg: targetWeightKg ? Number(targetWeightKg) : undefined,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "저장에 실패했습니다.");
+      setError(err instanceof Error ? err.message : "저장에 실패했어요.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div>
-        <label className="mb-2 block text-sm font-medium text-neutral-700">목표 방식</label>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {MODE_OPTIONS.map((opt) => (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-2">
+        {MODE_OPTIONS.map((opt) => {
+          const active = mode === opt.value;
+          return (
             <button
               type="button"
               key={opt.value}
               onClick={() => setMode(opt.value)}
-              className={`rounded-xl border px-4 py-3 text-left transition ${
-                mode === opt.value
-                  ? "border-neutral-900 bg-neutral-900 text-white"
-                  : "border-neutral-200 bg-white hover:border-neutral-400"
-              }`}
+              className="rounded-xl border px-3.5 py-3 text-left text-[13px] font-bold"
+              style={{
+                borderColor: active ? "var(--color-brand)" : "var(--color-input-border)",
+                background: active ? "var(--color-brand)" : "#fff",
+                color: active ? "#fff" : "var(--color-ink)",
+              }}
             >
-              <div className="text-sm font-semibold">{opt.label}</div>
-              <div className={`mt-0.5 text-xs ${mode === opt.value ? "text-neutral-300" : "text-neutral-500"}`}>
-                {opt.hint}
-              </div>
+              {opt.label}
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {needsCalorie && (
-        <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
-            목표 칼로리 (kcal/일)
-          </label>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={calorieTarget}
-            onChange={(e) => setCalorieTarget(e.target.value)}
-            placeholder="예: 2200"
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-900 focus:outline-none"
-          />
-        </div>
-      )}
-
-      {needsProtein && (
-        <div>
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
-            목표 단백질 (g/일)
-          </label>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={proteinTarget}
-            onChange={(e) => setProteinTarget(e.target.value)}
-            placeholder="예: 150"
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-900 focus:outline-none"
-          />
-        </div>
-      )}
-
-      <div>
-        <label className="mb-1 block text-sm font-medium text-neutral-700">
-          목표 체중 (kg, 선택)
-        </label>
         <input
           type="number"
-          inputMode="decimal"
+          inputMode="numeric"
           min={0}
-          step={0.1}
-          value={targetWeightKg}
-          onChange={(e) => setTargetWeightKg(e.target.value)}
-          placeholder="예: 72.0"
-          className="w-full rounded-lg border border-neutral-300 px-3 py-2 focus:border-neutral-900 focus:outline-none"
+          value={calorieTarget}
+          onChange={(e) => setCalorieTarget(e.target.value)}
+          placeholder="목표 칼로리(kcal)"
+          className="w-full rounded-[10px] border border-input-border bg-ivory px-3.5 py-2.5 text-[13px] text-ink focus:border-brand focus:outline-none"
         />
-      </div>
+      )}
+      {needsProtein && (
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={proteinTarget}
+          onChange={(e) => setProteinTarget(e.target.value)}
+          placeholder="목표 단백질(g)"
+          className="w-full rounded-[10px] border border-input-border bg-ivory px-3.5 py-2.5 text-[13px] text-ink focus:border-brand focus:outline-none"
+        />
+      )}
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step={0.1}
+        value={targetWeightKg}
+        onChange={(e) => setTargetWeightKg(e.target.value)}
+        placeholder="목표 체중(kg, 선택)"
+        className="w-full rounded-[10px] border border-input-border bg-ivory px-3.5 py-2.5 text-[13px] text-ink focus:border-brand focus:outline-none"
+      />
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       <button
         type="submit"
         disabled={submitting}
-        className="rounded-lg bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-neutral-700 disabled:opacity-50"
+        className="rounded-[10px] bg-brand py-2.5 text-center text-[13px] font-bold text-white disabled:opacity-50"
       >
         {submitting ? "저장 중..." : submitLabel}
       </button>
