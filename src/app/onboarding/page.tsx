@@ -48,6 +48,7 @@ export default function OnboardingPage() {
   const [calorieTarget, setCalorieTarget] = useState("2200");
   const [proteinTarget, setProteinTarget] = useState("150");
   const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -97,6 +98,7 @@ export default function OnboardingPage() {
   async function finishOnboarding() {
     if (!user) return;
     setFinishing(true);
+    setFinishError(null);
     try {
       await saveGoal(user.uid, {
         mode: goalMode,
@@ -114,6 +116,11 @@ export default function OnboardingPage() {
       }
       markOnboardingCompleted();
       router.replace("/dashboard");
+    } catch (err) {
+      console.error("온보딩 저장 실패:", err);
+      setFinishError(
+        err instanceof Error ? err.message : "저장에 실패했어요. Firestore 보안 규칙을 확인해주세요."
+      );
     } finally {
       setFinishing(false);
     }
@@ -305,6 +312,7 @@ export default function OnboardingPage() {
             <SummaryRow label="운동 목적" value={purpose || "선택 안 함"} />
             <SummaryRow label="목표" value={summaryGoal} />
           </div>
+          {finishError && <p className="text-center text-xs text-danger">{finishError}</p>}
           <button
             onClick={finishOnboarding}
             disabled={finishing}
