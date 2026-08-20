@@ -5,6 +5,7 @@ import { addDays, differenceInCalendarDays, format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
 import { addFridgeItem, getFridgeItems, getGoal, removeFridgeItem } from "@/lib/data";
 import { todayStr } from "@/lib/date-utils";
+import { postJson } from "@/lib/api-client";
 import type { FridgeItem, Goal } from "@/types";
 
 interface RecommendResult {
@@ -81,17 +82,11 @@ export default function DietRecommendPage() {
           }${goal.proteinTarget ? ` · ${goal.proteinTarget}g` : ""}`
         : "";
       const token = await user.getIdToken();
-      const res = await fetch("/api/diet/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          items: items.map((i) => ({ name: i.name, quantity: i.quantity })),
-          priorityItems,
-          goalSummary,
-        }),
+      const data = await postJson<RecommendResult>("/api/diet/recommend", token, {
+        items: items.map((i) => ({ name: i.name, quantity: i.quantity })),
+        priorityItems,
+        goalSummary,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "추천에 실패했어요.");
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "추천에 실패했어요.");

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { FOOD_DB } from "@/data/foods";
 import { mealLabel } from "@/lib/meal-types";
+import { postJson } from "@/lib/api-client";
 import type { MealItem, MealType } from "@/types";
 
 interface CartItem extends MealItem {
@@ -38,13 +39,7 @@ export function DietRecordingPanel({ mealType, initialText, isEditing, onClose, 
     setError(null);
     try {
       const token = await user.getIdToken();
-      const res = await fetch("/api/diet/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "분석에 실패했어요.");
+      const data = await postJson<{ meals: MealItem[] }>("/api/diet/analyze", token, { text });
       setAnalyzed(data.meals);
     } catch (err) {
       setError(err instanceof Error ? err.message : "분석에 실패했어요.");

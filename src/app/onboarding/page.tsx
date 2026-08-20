@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { addInbodyRecord, saveGoal } from "@/lib/data";
 import { todayStr } from "@/lib/date-utils";
+import { fileToResizedBase64 } from "@/lib/image-utils";
+import { postJson } from "@/lib/api-client";
 import type { GoalMode } from "@/types";
 
 const PURPOSES = ["체중 감량", "근육 증가", "체력 향상", "건강 유지"] as const;
@@ -22,15 +24,6 @@ const GOAL_MODE_OPTIONS: { value: GoalMode; label: string; hint: string }[] = [
   { value: "protein", label: "단백질만", hint: "하루 목표 단백질량만 관리" },
   { value: "both", label: "칼로리 + 단백질", hint: "둘 다 목표로 관리 (추천)" },
 ];
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 export default function OnboardingPage() {
   const { user, loading, markOnboardingCompleted } = useAuth();
@@ -75,15 +68,13 @@ export default function OnboardingPage() {
     setPhotoUploading(true);
     setPhotoNotice(null);
     try {
-      const base64 = await fileToBase64(file);
+      const { base64, mediaType } = await fileToResizedBase64(file);
       const token = await user.getIdToken();
-      const res = await fetch("/api/inbody/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ imageBase64: base64, mediaType: file.type }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "분석에 실패했어요.");
+      const data = await postJson<{
+        weightKg: number | null;
+        skeletalMuscleMassKg: number | null;
+        bodyFatPercent: number | null;
+      }>("/api/inbody/analyze", token, { imageBase64: base64, mediaType });
       if (data.weightKg) setWeightKg(String(data.weightKg));
       if (data.skeletalMuscleMassKg) setMuscleMass(String(data.skeletalMuscleMassKg));
       if (data.bodyFatPercent) setBodyFat(String(data.bodyFatPercent));

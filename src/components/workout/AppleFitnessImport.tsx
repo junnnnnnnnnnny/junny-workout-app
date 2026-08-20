@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { addCardioWorkoutLogs } from "@/lib/data";
+import { postJson } from "@/lib/api-client";
 
 export function AppleFitnessImport({ date, onImported }: { date: string; onImported: () => void }) {
   const { user } = useAuth();
@@ -17,15 +18,10 @@ export function AppleFitnessImport({ date, onImported }: { date: string; onImpor
     setResult(null);
     try {
       const token = await user.getIdToken();
-      const res = await fetch("/api/workouts/parse-apple-fitness", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "분석에 실패했어요.");
-      const activities: { activityType: string; durationMin: number; caloriesBurned: number | null }[] =
-        data.activities;
+      const data = await postJson<{
+        activities: { activityType: string; durationMin: number; caloriesBurned: number | null }[];
+      }>("/api/workouts/parse-apple-fitness", token, { text });
+      const activities = data.activities;
       if (activities.length === 0) {
         setResult("인식된 운동이 없어요.");
         return;

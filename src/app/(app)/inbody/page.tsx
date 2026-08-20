@@ -4,16 +4,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { addInbodyRecord, getGoal, getInbodyRecords } from "@/lib/data";
 import { todayStr } from "@/lib/date-utils";
+import { fileToResizedBase64 } from "@/lib/image-utils";
+import { postJson } from "@/lib/api-client";
 import type { Goal, InbodyRecord } from "@/types";
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(",")[1] ?? "");
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 export default function InbodyPage() {
   const { user } = useAuth();
@@ -46,15 +39,14 @@ export default function InbodyPage() {
     setUploading(true);
     setNotice(null);
     try {
-      const base64 = await fileToBase64(file);
+      const { base64, mediaType } = await fileToResizedBase64(file);
       const token = await user.getIdToken();
-      const res = await fetch("/api/inbody/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ imageBase64: base64, mediaType: file.type }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "분석에 실패했어요.");
+      const data = await postJson<{
+        weightKg: number | null;
+        skeletalMuscleMassKg: number | null;
+        bodyFatPercent: number | null;
+        bodyFatMassKg: number | null;
+      }>("/api/inbody/analyze", token, { imageBase64: base64, mediaType });
       if (!data.weightKg) {
         setNotice("사진에서 수치를 읽지 못했어요. 더 선명한 사진으로 다시 시도해주세요.");
         return;
