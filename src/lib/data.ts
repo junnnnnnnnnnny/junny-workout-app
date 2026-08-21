@@ -28,6 +28,13 @@ import type {
 } from "@/types";
 import type { FoodDbItem } from "@/data/foods";
 
+// Firestore의 setDoc/updateDoc은 값이 undefined인 필드가 하나라도 있으면 문서 전체 쓰기를
+// 거부한다(온보딩에서 일부 단계를 건너뛰면 그 필드가 undefined로 남는 경우가 흔함).
+// 실제로 쓸 필드만 남기고 undefined는 제거해서 넘긴다.
+function stripUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
+}
+
 // ---------- Profile (출생년도/키/성별) ----------
 
 export async function getUserProfile(uid: string): Promise<UserProfile> {
@@ -38,7 +45,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile> {
 }
 
 export async function saveUserProfile(uid: string, profile: UserProfile): Promise<void> {
-  await setDoc(doc(db, "users", uid), profile, { merge: true });
+  await setDoc(doc(db, "users", uid), stripUndefined(profile), { merge: true });
 }
 
 // ---------- Goals ----------
@@ -51,7 +58,7 @@ export async function getGoal(uid: string): Promise<Goal | null> {
 
 export async function saveGoal(uid: string, goal: Omit<Goal, "updatedAt">): Promise<void> {
   await setDoc(doc(db, "users", uid, "goals", "current"), {
-    ...goal,
+    ...stripUndefined(goal),
     updatedAt: new Date().toISOString(),
   });
   await setDoc(doc(db, "users", uid), { onboardingCompleted: true }, { merge: true });
@@ -105,7 +112,7 @@ export async function addWorkoutLog(
   }
 ): Promise<void> {
   await addDoc(collection(db, "users", uid, "workoutLogs"), {
-    ...entry,
+    ...stripUndefined(entry),
     kind: "strength",
     source: "manual",
     createdAt: serverTimestamp(),
@@ -136,7 +143,7 @@ export async function addCardioWorkoutLogs(
       addDoc(collection(db, "users", uid, "workoutLogs"), {
         date,
         kind: "cardio",
-        ...a,
+        ...stripUndefined(a),
         source: "apple-fitness",
         createdAt: serverTimestamp(),
       })
