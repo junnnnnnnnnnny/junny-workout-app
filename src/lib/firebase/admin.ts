@@ -1,5 +1,6 @@
 import { cert, getApps, getApp, initializeApp, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
 function buildAdminApp(): App {
   if (getApps().length) return getApp();
@@ -21,6 +22,11 @@ function buildAdminApp(): App {
 
 function getAdminAuth() {
   return getAuth(buildAdminApp());
+}
+
+/** 서버(Vercel 환경변수)에 있는 실제 서비스 계정으로 Firestore에 보안규칙 우회 접근. */
+export function getAdminFirestore() {
+  return getFirestore(buildAdminApp());
 }
 
 /** Verifies the Firebase ID token from an Authorization: Bearer header. Throws if invalid/missing. */

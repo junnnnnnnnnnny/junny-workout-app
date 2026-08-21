@@ -15,6 +15,7 @@ import {
 } from "@/lib/data";
 import { getExerciseById } from "@/data/exercises";
 import { GoalForm } from "@/components/goals/GoalForm";
+import { postJson } from "@/lib/api-client";
 import type { Goal, GymSettings, Sex, UserProfile } from "@/types";
 
 const EQUIPMENT_OPTIONS = ["바벨", "덤벨", "머신", "케이블", "맨몸"];
@@ -28,6 +29,8 @@ export default function AdminPage() {
   const [profileSaved, setProfileSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [goalSaved, setGoalSaved] = useState(false);
+  const [seedingFoods, setSeedingFoods] = useState(false);
+  const [seedResult, setSeedResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -91,6 +94,25 @@ export default function AdminPage() {
     if (!user) return;
     await restartOnboarding(user.uid);
     router.push("/onboarding");
+  }
+
+  async function handleSeedMcdonalds() {
+    if (!user) return;
+    setSeedingFoods(true);
+    setSeedResult(null);
+    try {
+      const token = await user.getIdToken();
+      const data = await postJson<{ added: number; skipped: number }>(
+        "/api/food/seed-mcdonalds",
+        token,
+        {}
+      );
+      setSeedResult(`${data.added}개 추가, ${data.skipped}개는 이미 있어서 건너뜀`);
+    } catch (err) {
+      setSeedResult(err instanceof Error ? err.message : "등록에 실패했어요.");
+    } finally {
+      setSeedingFoods(false);
+    }
   }
 
   const favoriteExercises = gymSettings.favoriteExerciseIds
@@ -207,6 +229,22 @@ export default function AdminPage() {
         ) : (
           <p className="text-xs text-muted">운동 화면에서 ★을 눌러 즐겨찾기에 추가해보세요.</p>
         )}
+      </section>
+
+      <section className="flex flex-col gap-2.5 rounded-2xl border border-card-border bg-white p-4">
+        <div className="text-[13px] font-bold text-ink">공통 음식 DB: 맥도날드 메뉴 등록</div>
+        <p className="text-xs text-muted">
+          제공해준 영양성분표 기준 52개 메뉴를 공통 음식 DB에 등록해요. 이미 등록된 항목은 건너뛰어서 여러 번 눌러도 안전해요.
+          (표에 총 탄수화물/지방 수치가 없어서 두 값은 0으로 등록돼요.)
+        </p>
+        <button
+          onClick={handleSeedMcdonalds}
+          disabled={seedingFoods}
+          className="rounded-[10px] bg-brand py-2.5 text-center text-[13px] font-bold text-white disabled:opacity-50"
+        >
+          {seedingFoods ? "등록 중..." : "맥도날드 메뉴 등록하기"}
+        </button>
+        {seedResult && <p className="text-center text-xs font-semibold text-brand">{seedResult}</p>}
       </section>
 
       <button
