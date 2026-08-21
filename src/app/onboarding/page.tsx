@@ -52,6 +52,7 @@ export default function OnboardingPage() {
   const [carbTarget, setCarbTarget] = useState("");
   const [fatTarget, setFatTarget] = useState("");
 
+  const [computing, setComputing] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
 
@@ -79,6 +80,14 @@ export default function OnboardingPage() {
       return next;
     });
     setBodySource("ocr");
+  }
+
+  function handleActivityNext() {
+    setComputing(true);
+    setTimeout(() => {
+      computeGoalAndProceed();
+      setComputing(false);
+    }, 1100);
   }
 
   function computeGoalAndProceed() {
@@ -177,7 +186,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-1 flex-col bg-ivory px-6 pb-10 pt-7">
-      {step >= 1 && step <= TOTAL_STEPS && (
+      {step >= 1 && step <= TOTAL_STEPS && !computing && (
         <div className="mb-7 flex items-center justify-between">
           <div className="flex gap-1.5">
             {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((d) => (
@@ -348,7 +357,7 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {step === 4 && (
+      {step === 4 && !computing && (
         <div className="flex flex-col gap-5">
           <div>
             <div className="text-xs font-semibold text-muted">STEP 4 · {TOTAL_STEPS}</div>
@@ -382,7 +391,7 @@ export default function OnboardingPage() {
             ))}
           </div>
           <button
-            onClick={computeGoalAndProceed}
+            onClick={handleActivityNext}
             className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white"
           >
             다음
@@ -390,22 +399,34 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {step === 5 && (
+      {computing && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+          <div
+            className="h-10 w-10 animate-spin rounded-full border-4"
+            style={{ borderColor: "var(--color-track)", borderTopColor: "var(--color-brand)" }}
+          />
+          <p className="text-[13px] font-semibold text-muted-dark">
+            입력하신 정보로 목표를 계산하고 있어요...
+          </p>
+        </div>
+      )}
+
+      {step === 5 && !computing && (
         <div className="flex flex-col gap-5">
           <div>
             <div className="text-xs font-semibold text-muted">STEP 5 · {TOTAL_STEPS}</div>
-            <div className="mt-1 text-xl font-bold text-ink">목표를 확인해주세요</div>
-            <div className="mt-2 rounded-xl bg-brand-soft px-3 py-2.5 text-xs font-semibold leading-[1.5] text-brand">
-              {bmrMethod
-                ? bmrMethodLabel(bmrMethod)
-                : "입력된 정보가 부족해 대략적인 기본값으로 채웠어요. 필요하면 직접 수정하세요."}
-            </div>
+            <div className="mt-1 text-xl font-bold text-ink">목표 설정</div>
+            <p className="mt-1.5 text-[13px] text-muted">입력하신 데이터를 기반으로 추천드리는 목표에요.</p>
+            <p className="text-[13px] text-muted">원하시면 조정이 가능해요, 숫자를 직접 수정해주세요.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <LabeledInput label="목표 칼로리 (kcal)" value={calorieTarget} onChange={setCalorieTarget} placeholder="예: 2200" />
             <LabeledInput label="단백질 (g)" value={proteinTarget} onChange={setProteinTarget} placeholder="예: 150" />
-            <LabeledInput label="탄수화물 (g)" value={carbTarget} onChange={setCarbTarget} placeholder="예: 220" />
-            <LabeledInput label="지방 (g)" value={fatTarget} onChange={setFatTarget} placeholder="예: 60" />
+          </div>
+          <div className="rounded-xl bg-brand-soft px-3 py-2.5 text-xs font-semibold leading-[1.5] text-brand">
+            {bmrMethod
+              ? bmrMethodLabel(bmrMethod)
+              : "입력된 정보가 부족해 대략적인 기본값으로 채웠어요. 필요하면 직접 수정하세요."}
           </div>
           {purpose && (
             <div className="rounded-xl border border-card-border bg-white p-3.5 text-xs text-muted-dark">
