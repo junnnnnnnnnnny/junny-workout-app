@@ -4,9 +4,11 @@ import type { DietLog } from "@/types";
 export function DietDiaryEntries({
   entries,
   onEdit,
+  onDelete,
 }: {
   entries: DietLog[];
   onEdit: (entry: DietLog) => void;
+  onDelete: (entry: DietLog) => void;
 }) {
   const sections = MEAL_TYPES.map((mt) => ({
     ...mt,
@@ -33,9 +35,14 @@ export function DietDiaryEntries({
                       {Math.round(log.totalCarbsG)}g · 지방 {Math.round(log.totalFatG)}g
                     </div>
                   </div>
-                  <button onClick={() => onEdit(log)} className="shrink-0 text-xs font-bold text-brand">
-                    수정
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2.5">
+                    <button onClick={() => onEdit(log)} className="text-xs font-bold text-brand">
+                      수정
+                    </button>
+                    <button onClick={() => onDelete(log)} className="text-xs font-bold text-danger">
+                      삭제
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

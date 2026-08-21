@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import {
   addDietLog,
+  deleteDietLog,
   getDietLogsForDate,
   getDietLogsForDateRange,
   getGoal,
@@ -115,6 +116,17 @@ export default function DietPage() {
     setEditingLog(null);
   }
 
+  async function handleDelete(entry: DietLog) {
+    if (!user) return;
+    if (!confirm("이 기록을 삭제할까요?")) return;
+    await deleteDietLog(user.uid, entry.id);
+    if (editingLog?.id === entry.id) {
+      setRecordingMeal(null);
+      setEditingLog(null);
+    }
+    refreshDay(selectedDate);
+  }
+
   const dayCalories = dayEntries.reduce((sum, l) => sum + l.totalCalories, 0);
   const dayProtein = dayEntries.reduce((sum, l) => sum + l.totalProteinG, 0);
   const dayCarbs = dayEntries.reduce((sum, l) => sum + l.totalCarbsG, 0);
@@ -174,7 +186,7 @@ export default function DietPage() {
         />
       )}
 
-      <DietDiaryEntries entries={dayEntries} onEdit={editEntry} />
+      <DietDiaryEntries entries={dayEntries} onEdit={editEntry} onDelete={handleDelete} />
     </div>
   );
 }

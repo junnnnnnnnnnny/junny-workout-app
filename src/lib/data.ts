@@ -228,6 +228,10 @@ export async function updateDietLog(
   });
 }
 
+export async function deleteDietLog(uid: string, id: string): Promise<void> {
+  await deleteDoc(doc(db, "users", uid, "dietLogs", id));
+}
+
 export async function getDietLogsForDate(uid: string, date: string): Promise<DietLog[]> {
   const q = query(
     collection(db, "users", uid, "dietLogs"),
