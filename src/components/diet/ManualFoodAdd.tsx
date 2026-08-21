@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { addSharedFood } from "@/lib/data";
 import { fileToResizedBase64 } from "@/lib/image-utils";
@@ -29,6 +29,7 @@ export function ManualFoodAdd({ initialName, onCancel, onSaved }: ManualFoodAddP
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const [name, setName] = useState(initialName);
   const [unit, setUnit] = useState("100g");
@@ -60,6 +61,24 @@ export function ManualFoodAdd({ initialName, onCancel, onSaved }: ManualFoodAddP
       setAnalyzing(false);
     }
   }
+
+  useEffect(() => {
+    if (tab !== "photo") return;
+    function handlePaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) handleFile(file);
+          break;
+        }
+      }
+    }
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, user]);
 
   async function handleSave() {
     if (!user) return;
@@ -123,11 +142,25 @@ export function ManualFoodAdd({ initialName, onCancel, onSaved }: ManualFoodAddP
 
       {tab === "photo" && (
         <div className="flex flex-col gap-2">
-          <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[10px] border border-input-border bg-white px-3 py-4 text-center">
+          <label
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) handleFile(file);
+            }}
+            className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[10px] border border-dashed bg-white px-3 py-4 text-center transition"
+            style={{ borderColor: dragOver ? "var(--color-brand)" : "var(--color-input-border)" }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {preview && <img src={preview} alt="" className="h-20 w-20 rounded-lg object-cover" />}
             <span className="text-xs font-semibold text-muted-dark">
-              {analyzing ? "분석 중..." : preview ? "다른 사진 선택" : "영양성분표 사진 선택"}
+              {analyzing ? "분석 중..." : preview ? "다른 사진 선택" : "탭해서 선택 · 드래그 · Ctrl+V로 붙여넣기"}
             </span>
             <input
               type="file"
