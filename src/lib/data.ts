@@ -26,6 +26,7 @@ import type {
   WorkoutLog,
   WorkoutSetEntry,
 } from "@/types";
+import type { FoodDbItem } from "@/data/foods";
 
 // ---------- Profile (출생년도/키/성별) ----------
 
@@ -284,6 +285,32 @@ export async function addInbodyRecord(
 ): Promise<void> {
   await addDoc(collection(db, "users", uid, "inbodyRecords"), {
     ...record,
+    createdAt: serverTimestamp(),
+  });
+}
+
+// ---------- 공통 음식 데이터베이스 (모든 사용자가 함께 쓰는 top-level 컬렉션) ----------
+
+export async function getSharedFoods(): Promise<FoodDbItem[]> {
+  const q = query(collection(db, "foods"), orderBy("name", "asc"), limit(500));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      name: data.name,
+      unit: data.unit,
+      calories: data.calories,
+      proteinG: data.proteinG,
+      carbsG: data.carbsG,
+      fatG: data.fatG,
+    } as FoodDbItem;
+  });
+}
+
+export async function addSharedFood(uid: string, food: FoodDbItem): Promise<void> {
+  await addDoc(collection(db, "foods"), {
+    ...food,
+    createdBy: uid,
     createdAt: serverTimestamp(),
   });
 }

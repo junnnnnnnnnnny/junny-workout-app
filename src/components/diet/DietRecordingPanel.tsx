@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { FOOD_DB } from "@/data/foods";
+import { FOOD_DB, type FoodDbItem } from "@/data/foods";
+import { getSharedFoods } from "@/lib/data";
 import { mealLabel } from "@/lib/meal-types";
 import { postJson } from "@/lib/api-client";
+import { ManualFoodAdd } from "@/components/diet/ManualFoodAdd";
 import type { MealItem, MealType } from "@/types";
 
 interface CartItem extends MealItem {
@@ -31,6 +33,14 @@ export function DietRecordingPanel({ mealType, initialText, isEditing, onClose, 
 
   const [foodQuery, setFoodQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [sharedFoods, setSharedFoods] = useState<FoodDbItem[]>([]);
+  const [addingFood, setAddingFood] = useState(false);
+
+  useEffect(() => {
+    getSharedFoods()
+      .then(setSharedFoods)
+      .catch((err) => console.error("failed to load shared foods", err));
+  }, []);
 
   async function analyzeChat() {
     if (!user || !text.trim()) return;
@@ -51,14 +61,17 @@ export function DietRecordingPanel({ mealType, initialText, isEditing, onClose, 
   async function saveChat() {
     if (!analyzed) return;
     setSaving(true);
+    setError(null);
     try {
       await onSave(analyzed, text);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "저장에 실패했어요.");
     } finally {
       setSaving(false);
     }
   }
 
-  function addToCart(food: (typeof FOOD_DB)[number]) {
+  function addToCart(food: FoodDbItem) {
     setCart((prev) => {
       const existing = prev.find((c) => c.name === food.name);
       if (existing) return prev.map((c) => (c.name === food.name ? { ...c, qty: c.qty + 1 } : c));
@@ -81,6 +94,7 @@ export function DietRecordingPanel({ mealType, initialText, isEditing, onClose, 
   async function saveCart() {
     if (cart.length === 0) return;
     setSaving(true);
+    setError(null);
     try {
       const meals: MealItem[] = cart.map((c) => ({
         name: c.name,
@@ -92,12 +106,25 @@ export function DietRecordingPanel({ mealType, initialText, isEditing, onClose, 
       }));
       const rawInput = cart.map((c) => `${c.name} ${c.qty}${c.quantity}`).join(", ");
       await onSave(meals, rawInput);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "저장에 실패했어요.");
     } finally {
       setSaving(false);
     }
   }
 
-  const filteredFoods = FOOD_DB.filter((f) => f.name.toLowerCase().includes(foodQuery.trim().toLowerCase()));
+  const allFoods: FoodDbItem[] = [
+    ...FOOD_DB,
+    ...sharedFoods.filter((f) => !FOOD_DB.some((b) => b.name === f.name)),
+  ];
+  const filteredFoods = allFoods.filter((f) => f.name.toLowerCase().includes(foodQuery.trim().toLowerCase()));
+
+  function handleFoodSaved(food: FoodDbItem) {
+    setSharedFoods((prev) => [food, ...prev]);
+    addToCart(food);
+    setAddingFood(false);
+    setFoodQuery("");
+  }
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-card-border bg-white p-4">
@@ -133,6 +160,8 @@ export function DietRecordingPanel({ mealType, initialText, isEditing, onClose, 
         </button>
       </div>
 
+      {error && <p className="text-xs text-danger">{error}</p>}
+
       {mode === "chat" && (
         <div className="flex flex-col gap-2.5">
           <textarea
@@ -149,7 +178,6 @@ export function DietRecordingPanel({ mealType, initialText, isEditing, onClose, 
           >
             {analyzing ? "분석 중..." : "분석하기"}
           </button>
-          {error && <p className="text-xs text-danger">{error}</p>}
           {analyzed && (
             <div className="flex flex-col gap-1.5 border-t border-divider pt-2.5">
               <div className="text-[11px] font-bold text-muted">분석 결과 ({analyzed.length}개 항목)</div>
@@ -181,20 +209,45 @@ export function DietRecordingPanel({ mealType, initialText, isEditing, onClose, 
             placeholder="음식 검색 (예: 닭가슴살)"
             className="w-full rounded-[10px] border border-input-border bg-ivory px-3 py-2.5 text-[13px] text-ink focus:border-brand focus:outline-none"
           />
-          <div className="flex max-h-[180px] flex-col gap-1.5 overflow-y-auto">
-            {filteredFoods.map((food) => (
+          {filteredFoods.length > 0 && (
+            <div className="flex max-h-[180px] flex-col gap-1.5 overflow-y-auto">
+              {filteredFoods.map((food) => (
+                <button
+                  key={food.name}
+                  onClick={() => addToCart(food)}
+                  className="flex items-center justify-between border-b border-divider py-2 text-left"
+                >
+                  <div className="text-[13px] font-semibold text-ink">
+                    {food.name} <span className="font-normal text-muted">· {food.unit}</span>
+                  </div>
+                  <div className="text-[11px] text-muted">{food.calories}kcal</div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {filteredFoods.length === 0 && !addingFood && (
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-input-border py-4 text-center">
+              <p className="text-xs text-muted">
+                {foodQuery.trim() ? `'${foodQuery.trim()}'에 대한 검색 결과가 없어요.` : "등록된 음식이 없어요."}
+              </p>
               <button
-                key={food.name}
-                onClick={() => addToCart(food)}
-                className="flex items-center justify-between border-b border-divider py-2 text-left"
+                onClick={() => setAddingFood(true)}
+                className="rounded-full border border-brand px-4 py-2 text-xs font-bold text-brand"
               >
-                <div className="text-[13px] font-semibold text-ink">
-                  {food.name} <span className="font-normal text-muted">· {food.unit}</span>
-                </div>
-                <div className="text-[11px] text-muted">{food.calories}kcal</div>
+                수동으로 추가하기
               </button>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {addingFood && (
+            <ManualFoodAdd
+              initialName={foodQuery.trim()}
+              onCancel={() => setAddingFood(false)}
+              onSaved={handleFoodSaved}
+            />
+          )}
+
           {cart.length > 0 && (
             <div className="flex flex-col gap-1.5 border-t border-divider pt-2.5">
               <div className="text-[11px] font-bold text-muted">선택한 항목</div>

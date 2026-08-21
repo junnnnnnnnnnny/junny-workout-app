@@ -27,6 +27,7 @@ export default function DietPage() {
   const [dayEntries, setDayEntries] = useState<DietLog[]>([]);
   const [recordingMeal, setRecordingMeal] = useState<MealType | null>(null);
   const [editingLog, setEditingLog] = useState<DietLog | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -37,9 +38,11 @@ export default function DietPage() {
     if (!user) return;
     let ignore = false;
     const dates = weekDatesForOffset(weekOffset);
-    getDietLogsForDateRange(user.uid, dates[0], dates[6]).then((logs) => {
-      if (!ignore) setWeekEntries(logs);
-    });
+    getDietLogsForDateRange(user.uid, dates[0], dates[6])
+      .then((logs) => {
+        if (!ignore) setWeekEntries(logs);
+      })
+      .catch((err) => console.error("failed to load week entries", err));
     return () => {
       ignore = true;
     };
@@ -48,9 +51,17 @@ export default function DietPage() {
   useEffect(() => {
     if (!user) return;
     let ignore = false;
-    getDietLogsForDate(user.uid, selectedDate).then((logs) => {
-      if (!ignore) setDayEntries(logs);
-    });
+    getDietLogsForDate(user.uid, selectedDate)
+      .then((logs) => {
+        if (!ignore) {
+          setDayEntries(logs);
+          setRefreshError(null);
+        }
+      })
+      .catch((err) => {
+        console.error("failed to load day entries", err);
+        if (!ignore) setRefreshError(err instanceof Error ? err.message : "기록을 불러오지 못했어요.");
+      });
     return () => {
       ignore = true;
     };
@@ -58,9 +69,17 @@ export default function DietPage() {
 
   function refreshDay(date: string) {
     if (!user) return;
-    getDietLogsForDate(user.uid, date).then(setDayEntries);
+    setRefreshError(null);
+    getDietLogsForDate(user.uid, date)
+      .then(setDayEntries)
+      .catch((err) => {
+        console.error("failed to refresh day entries", err);
+        setRefreshError(err instanceof Error ? err.message : "기록을 불러오지 못했어요.");
+      });
     const dates = weekDatesForOffset(weekOffset);
-    getDietLogsForDateRange(user.uid, dates[0], dates[6]).then(setWeekEntries);
+    getDietLogsForDateRange(user.uid, dates[0], dates[6])
+      .then(setWeekEntries)
+      .catch((err) => console.error("failed to refresh week entries", err));
   }
 
   function selectDate(date: string) {
@@ -133,6 +152,12 @@ export default function DietPage() {
       />
 
       <MealBarChart entries={dayEntries} />
+
+      {refreshError && (
+        <p className="rounded-xl bg-danger/10 px-3.5 py-2.5 text-xs font-semibold text-danger">
+          {refreshError} (Firestore 색인 설정이 필요할 수 있어요. 브라우저 개발자 콘솔에 에러 메시지와 색인 생성 링크가 함께 떠요.)
+        </p>
+      )}
 
       <MealButtons activeMeal={recordingMeal} onSelect={toggleMeal} />
 
