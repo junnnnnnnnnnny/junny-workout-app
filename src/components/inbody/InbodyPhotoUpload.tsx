@@ -7,11 +7,15 @@ import { postJson } from "@/lib/api-client";
 
 const MAX_FILES = 3;
 
-interface InbodyAnalysis {
+export interface InbodyAnalysis {
   weightKg: number | null;
   skeletalMuscleMassKg: number | null;
-  bodyFatPercent: number | null;
   bodyFatMassKg: number | null;
+  bodyFatPercent: number | null;
+  bmi: number | null;
+  bmrKcal: number | null;
+  waistHipRatio: number | null;
+  visceralFatLevel: number | null;
 }
 
 export function InbodyPhotoUpload({ onAnalyzed }: { onAnalyzed: (data: InbodyAnalysis) => void }) {

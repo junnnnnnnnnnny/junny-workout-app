@@ -266,14 +266,7 @@ export async function getInbodyRecords(uid: string, count = 12): Promise<InbodyR
 
 export async function addInbodyRecord(
   uid: string,
-  record: {
-    date: string;
-    weightKg: number;
-    skeletalMuscleMassKg?: number;
-    bodyFatPercent?: number;
-    bodyFatMassKg?: number;
-    source: "manual" | "ocr";
-  }
+  record: Omit<InbodyRecord, "id" | "createdAt">
 ): Promise<void> {
   await addDoc(collection(db, "users", uid, "inbodyRecords"), {
     ...record,

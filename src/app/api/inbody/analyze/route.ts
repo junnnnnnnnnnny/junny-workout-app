@@ -13,8 +13,12 @@ export const maxDuration = 60;
 const InbodySchema = z.object({
   weightKg: z.number().nullable().describe("체중 (kg)"),
   skeletalMuscleMassKg: z.number().nullable().describe("골격근량 (kg)"),
-  bodyFatPercent: z.number().nullable().describe("체지방률 (%)"),
   bodyFatMassKg: z.number().nullable().describe("체지방량 (kg)"),
+  bodyFatPercent: z.number().nullable().describe("체지방률 (%)"),
+  bmi: z.number().nullable().describe("BMI"),
+  bmrKcal: z.number().nullable().describe("기초대사량 (kcal)"),
+  waistHipRatio: z.number().nullable().describe("복부지방률 WHR (예: 0.85)"),
+  visceralFatLevel: z.number().nullable().describe("내장지방레벨"),
 });
 
 const ALLOWED_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
@@ -62,8 +66,8 @@ export async function POST(request: Request) {
       type: "text",
       text:
         images.length > 1
-          ? "이 사진들은 같은 인바디 결과지를 여러 장으로 나눠 찍은 것일 수 있어요. 모든 사진을 종합해서 체중, 골격근량, 체지방률, 체지방량을 읽어줘."
-          : "이 인바디 결과지에서 체중, 골격근량, 체지방률, 체지방량을 읽어줘.",
+          ? "이 사진들은 같은 인바디 결과지를 여러 장으로 나눠 찍은 것일 수 있어요. 모든 사진을 종합해서 체중, 골격근량, 체지방량, 체지방률, BMI, 기초대사량, 복부지방률(WHR), 내장지방레벨을 읽어줘."
+          : "이 인바디 결과지에서 체중, 골격근량, 체지방량, 체지방률, BMI, 기초대사량, 복부지방률(WHR), 내장지방레벨을 읽어줘.",
     },
   ];
 
@@ -76,7 +80,7 @@ export async function POST(request: Request) {
         format: zodOutputFormat(InbodySchema),
       },
       system:
-        "당신은 인바디(InBody) 체성분 분석 결과지 사진에서 수치를 읽어내는 어시스턴트입니다. 사진 한 장에 모든 정보가 안 담겨 여러 장으로 나눠 찍힌 경우, 모든 사진의 정보를 종합해서 하나의 결과로 합쳐주세요. 체중(kg), 골격근량(kg), 체지방률(%), 체지방량(kg)을 정확히 읽어 반환하세요. 어떤 사진에서도 값을 확인할 수 없으면 null로 두세요.",
+        "당신은 인바디(InBody) 체성분 분석 결과지 사진에서 수치를 읽어내는 어시스턴트입니다. 사진 한 장에 모든 정보가 안 담겨 여러 장으로 나눠 찍힌 경우, 모든 사진의 정보를 종합해서 하나의 결과로 합쳐주세요. 체중(kg), 골격근량(kg), 체지방량(kg), 체지방률(%), BMI, 기초대사량(kcal), 복부지방률(WHR), 내장지방레벨을 정확히 읽어 반환하세요. 어떤 사진에서도 값을 확인할 수 없는 항목은 null로 두세요.",
       messages: [{ role: "user", content }],
     });
 

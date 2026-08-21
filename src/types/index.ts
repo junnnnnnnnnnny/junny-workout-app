@@ -97,10 +97,15 @@ export interface FridgeItem {
 export interface InbodyRecord {
   id: string;
   date: string;
-  weightKg: number;
+  heightCm?: number; // 키 (OCR로는 인식 안 되어 항상 수동 입력)
+  weightKg?: number;
   skeletalMuscleMassKg?: number;
-  bodyFatPercent?: number;
   bodyFatMassKg?: number;
+  bodyFatPercent?: number;
+  bmi?: number;
+  bmrKcal?: number; // 기초대사량
+  waistHipRatio?: number; // 복부지방률 (WHR)
+  visceralFatLevel?: number; // 내장지방레벨
   imageUrl?: string;
   source: "manual" | "ocr";
   createdAt: string;
