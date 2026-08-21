@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { addInbodyRecord, saveGoal } from "@/lib/data";
 import { todayStr } from "@/lib/date-utils";
-import { InbodyPhotoUpload } from "@/components/inbody/InbodyPhotoUpload";
-import type { GoalMode } from "@/types";
+import { InbodyPhotoUpload, type InbodyAnalysis } from "@/components/inbody/InbodyPhotoUpload";
+import { INBODY_FIELDS, type InbodyFieldKey } from "@/lib/inbody-fields";
+import type { GoalMode, InbodyRecord } from "@/types";
 
 const PURPOSES = ["체중 감량", "근육 증가", "체력 향상", "건강 유지"] as const;
 type Purpose = (typeof PURPOSES)[number];
@@ -31,9 +32,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [bodyMode, setBodyMode] = useState<"manual" | "photo">("manual");
   const [bodySource, setBodySource] = useState<"manual" | "ocr">("manual");
-  const [weightKg, setWeightKg] = useState("");
-  const [muscleMass, setMuscleMass] = useState("");
-  const [bodyFat, setBodyFat] = useState("");
+  const [bodyValues, setBodyValues] = useState<Partial<Record<InbodyFieldKey, string>>>({});
   const [purpose, setPurpose] = useState<Purpose | null>(null);
   const [goalMode, setGoalMode] = useState<GoalMode>("both");
   const [calorieTarget, setCalorieTarget] = useState("2200");
@@ -53,21 +52,28 @@ export default function OnboardingPage() {
   }
 
   function proceedToGoal() {
-    const w = Number(weightKg) || 74;
+    const w = Number(bodyValues.weightKg) || 74;
     const mult = purpose ? PURPOSE_MULTIPLIERS[purpose] : { cal: 29, prot: 1.8 };
     setCalorieTarget(String(Math.round(w * mult.cal)));
     setProteinTarget(String(Math.round(w * mult.prot)));
     setStep(3);
   }
 
-  function handlePhotoAnalyzed(data: {
-    weightKg: number | null;
-    skeletalMuscleMassKg: number | null;
-    bodyFatPercent: number | null;
-  }) {
-    if (data.weightKg) setWeightKg(String(data.weightKg));
-    if (data.skeletalMuscleMassKg) setMuscleMass(String(data.skeletalMuscleMassKg));
-    if (data.bodyFatPercent) setBodyFat(String(data.bodyFatPercent));
+  function setBodyField(key: InbodyFieldKey, value: string) {
+    setBodyValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handlePhotoAnalyzed(data: InbodyAnalysis) {
+    const ocrValues = data as unknown as Record<string, number | null>;
+    setBodyValues((prev) => {
+      const next = { ...prev };
+      for (const field of INBODY_FIELDS) {
+        if (!field.fromOcr) continue;
+        const value = ocrValues[field.key];
+        if (value !== null && value !== undefined) next[field.key] = String(value);
+      }
+      return next;
+    });
     setBodySource("ocr");
   }
 
@@ -81,14 +87,16 @@ export default function OnboardingPage() {
         calorieTarget: needsCalorie ? Number(calorieTarget) : undefined,
         proteinTarget: needsProtein ? Number(proteinTarget) : undefined,
       });
-      if (weightKg || bodyFat) {
-        await addInbodyRecord(user.uid, {
-          date: todayStr(),
-          weightKg: Number(weightKg) || 0,
-          skeletalMuscleMassKg: muscleMass ? Number(muscleMass) : undefined,
-          bodyFatPercent: bodyFat ? Number(bodyFat) : undefined,
-          source: bodySource,
-        });
+      const hasBodyValue = INBODY_FIELDS.some((f) => bodyValues[f.key]?.trim());
+      if (hasBodyValue) {
+        const record: Omit<InbodyRecord, "id" | "createdAt"> = { date: todayStr(), source: bodySource };
+        for (const field of INBODY_FIELDS) {
+          const raw = bodyValues[field.key];
+          if (raw && raw.trim()) {
+            (record as Record<InbodyFieldKey, number>)[field.key] = Number(raw);
+          }
+        }
+        await addInbodyRecord(user.uid, record);
       }
       markOnboardingCompleted();
       router.replace("/dashboard");
@@ -106,7 +114,10 @@ export default function OnboardingPage() {
 
   const summaryGoalMode = GOAL_MODE_OPTIONS.find((o) => o.value === goalMode)!;
   const summaryGoal = `${summaryGoalMode.label}${needsCalorie ? ` · ${calorieTarget}kcal` : ""}${needsProtein ? ` · ${proteinTarget}g` : ""}`;
-  const summaryBody = weightKg || bodyFat ? `${weightKg || "-"}kg · 체지방 ${bodyFat || "-"}%` : "입력 안 함";
+  const summaryBody =
+    bodyValues.weightKg || bodyValues.bodyFatPercent
+      ? `${bodyValues.weightKg || "-"}kg · 체지방 ${bodyValues.bodyFatPercent || "-"}%`
+      : "입력 안 함";
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-1 flex-col bg-ivory px-6 pb-10 pt-7">
@@ -185,9 +196,17 @@ export default function OnboardingPage() {
 
           {bodyMode === "photo" && <InbodyPhotoUpload onAnalyzed={handlePhotoAnalyzed} />}
 
-          <LabeledInput label="체중 (kg)" value={weightKg} onChange={setWeightKg} placeholder="예: 74.5" />
-          <LabeledInput label="골격근량 (kg)" value={muscleMass} onChange={setMuscleMass} placeholder="예: 33.2" />
-          <LabeledInput label="체지방률 (%)" value={bodyFat} onChange={setBodyFat} placeholder="예: 18.2" />
+          <div className="grid grid-cols-2 gap-3">
+            {INBODY_FIELDS.map((field) => (
+              <LabeledInput
+                key={field.key}
+                label={`${field.label}${field.unit ? ` (${field.unit})` : ""}`}
+                value={bodyValues[field.key] ?? ""}
+                onChange={(v) => setBodyField(field.key, v)}
+                placeholder="-"
+              />
+            ))}
+          </div>
 
           <button onClick={() => setStep(2)} className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white">
             다음

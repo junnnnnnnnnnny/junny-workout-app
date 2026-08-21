@@ -5,21 +5,8 @@ import { useAuth } from "@/lib/auth-context";
 import { addInbodyRecord } from "@/lib/data";
 import { todayStr } from "@/lib/date-utils";
 import { InbodyPhotoUpload, type InbodyAnalysis } from "@/components/inbody/InbodyPhotoUpload";
+import { INBODY_FIELDS as FIELDS, type InbodyFieldKey as FieldKey } from "@/lib/inbody-fields";
 import type { InbodyRecord } from "@/types";
-
-type FieldKey = Exclude<keyof InbodyRecord, "id" | "date" | "imageUrl" | "source" | "createdAt">;
-
-const FIELDS: { key: FieldKey; label: string; unit?: string; fromOcr: boolean }[] = [
-  { key: "heightCm", label: "키", unit: "cm", fromOcr: false },
-  { key: "weightKg", label: "체중", unit: "kg", fromOcr: true },
-  { key: "skeletalMuscleMassKg", label: "골격근량", unit: "kg", fromOcr: true },
-  { key: "bodyFatMassKg", label: "체지방량", unit: "kg", fromOcr: true },
-  { key: "bodyFatPercent", label: "체지방률", unit: "%", fromOcr: true },
-  { key: "bmi", label: "BMI", fromOcr: true },
-  { key: "bmrKcal", label: "기초대사량", unit: "kcal", fromOcr: true },
-  { key: "waistHipRatio", label: "복부지방률(WHR)", fromOcr: true },
-  { key: "visceralFatLevel", label: "내장지방레벨", fromOcr: true },
-];
 
 export function InbodyRegisterForm({ onSaved }: { onSaved: () => void }) {
   const { user } = useAuth();
