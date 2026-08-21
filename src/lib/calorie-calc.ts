@@ -1,5 +1,14 @@
 import type { ActivityLevel, GoalPurpose, Sex } from "@/types";
 
+/**
+ * 출생년도 → 만나이. 공식(Mifflin-St Jeor 등)은 모두 만나이 기준이라
+ * 한국식 나이와 혼동되기 쉬운 "나이"를 직접 받지 않고 출생년도로 받아 계산한다.
+ * (생일이 지났는지는 반영하지 않는 근사치지만 BMR 계산에는 오차가 무시할 수준)
+ */
+export function ageFromBirthYear(birthYear: number): number {
+  return new Date().getFullYear() - birthYear;
+}
+
 // ---------- 활동량 (TDEE 계수) ----------
 
 export const ACTIVITY_LEVELS: { key: ActivityLevel; label: string; hint: string; multiplier: number }[] = [

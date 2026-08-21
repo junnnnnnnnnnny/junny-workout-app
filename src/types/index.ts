@@ -1,5 +1,5 @@
 // Firestore layout (per user, under users/{uid}):
-//   (root doc)               -> profile fields: displayName, email, photoURL, onboardingCompleted, age, heightCm, sex
+//   (root doc)               -> profile fields: displayName, email, photoURL, onboardingCompleted, birthYear, heightCm, sex
 //   goals/current            -> Goal
 //   settings/gym             -> GymSettings (보유 기구, 즐겨찾기 운동)
 //   workoutLogs/{id}         -> WorkoutLog (근력 + 유산소/애플피트니스 통합)
@@ -13,7 +13,7 @@ export type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "ver
 export type GoalPurpose = "lose_weight" | "build_muscle" | "recomp" | "maintain";
 
 export interface UserProfile {
-  age?: number;
+  birthYear?: number; // 만나이 계산용 (한국나이 혼동 방지를 위해 나이 대신 출생년도로 받음)
   heightCm?: number;
   sex?: Sex;
 }

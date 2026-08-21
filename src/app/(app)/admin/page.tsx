@@ -24,7 +24,7 @@ export default function AdminPage() {
   const router = useRouter();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [gymSettings, setGymSettings] = useState<GymSettings>({ equipment: [], favoriteExerciseIds: [] });
-  const [profileForm, setProfileForm] = useState({ age: "", heightCm: "", sex: null as Sex | null });
+  const [profileForm, setProfileForm] = useState({ birthYear: "", heightCm: "", sex: null as Sex | null });
   const [profileSaved, setProfileSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [goalSaved, setGoalSaved] = useState(false);
@@ -38,7 +38,7 @@ export default function AdminPage() {
         setGoal(g);
         setGymSettings(gym);
         setProfileForm({
-          age: p.age?.toString() ?? "",
+          birthYear: p.birthYear?.toString() ?? "",
           heightCm: p.heightCm?.toString() ?? "",
           sex: p.sex ?? null,
         });
@@ -54,7 +54,7 @@ export default function AdminPage() {
   async function handleProfileSave() {
     if (!user) return;
     const next: UserProfile = {
-      age: profileForm.age ? Number(profileForm.age) : undefined,
+      birthYear: profileForm.birthYear ? Number(profileForm.birthYear) : undefined,
       heightCm: profileForm.heightCm ? Number(profileForm.heightCm) : undefined,
       sex: profileForm.sex ?? undefined,
     };
@@ -109,12 +109,12 @@ export default function AdminPage() {
         <p className="text-xs text-muted">칼로리 계산에 쓰이는 정보예요. 값이 바뀌면 관리 메뉴에서 목표를 다시 계산해 저장해주세요.</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="mb-1.5 text-xs font-semibold text-muted-dark">나이</div>
+            <div className="mb-1.5 text-xs font-semibold text-muted-dark">출생년도</div>
             <input
-              value={profileForm.age}
-              onChange={(e) => setProfileForm((p) => ({ ...p, age: e.target.value }))}
+              value={profileForm.birthYear}
+              onChange={(e) => setProfileForm((p) => ({ ...p, birthYear: e.target.value }))}
               inputMode="numeric"
-              placeholder="예: 28"
+              placeholder="예: 1998"
               className="w-full rounded-[10px] border border-input-border bg-ivory px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none"
             />
           </div>

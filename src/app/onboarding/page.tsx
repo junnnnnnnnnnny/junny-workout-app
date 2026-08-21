@@ -9,6 +9,7 @@ import { InbodyPhotoUpload, type InbodyAnalysis } from "@/components/inbody/Inbo
 import { INBODY_FIELDS, type InbodyFieldKey } from "@/lib/inbody-fields";
 import {
   ACTIVITY_LEVELS,
+  ageFromBirthYear,
   bmrMethodLabel,
   calculateBmr,
   calculateCalorieTarget,
@@ -29,7 +30,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
 
   // STEP 1: 기본 정보
-  const [age, setAge] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [heightCm, setHeightCm] = useState("");
   const [sex, setSex] = useState<Sex | null>(null);
 
@@ -89,7 +90,7 @@ export default function OnboardingPage() {
     const bmrResult = calculateBmr({
       weightKg,
       heightCm: heightCm ? Number(heightCm) : undefined,
-      age: age ? Number(age) : undefined,
+      age: birthYear ? ageFromBirthYear(Number(birthYear)) : undefined,
       sex: sex ?? undefined,
       bodyFatMassKg,
       bodyFatPercent,
@@ -125,7 +126,7 @@ export default function OnboardingPage() {
     setFinishError(null);
     try {
       await saveUserProfile(user.uid, {
-        age: age ? Number(age) : undefined,
+        birthYear: birthYear ? Number(birthYear) : undefined,
         heightCm: heightCm ? Number(heightCm) : undefined,
         sex: sex ?? undefined,
       });
@@ -222,7 +223,7 @@ export default function OnboardingPage() {
             <div className="mt-1 text-xl font-bold text-ink">기본 정보를 알려주세요</div>
             <p className="mt-1.5 text-[13px] text-muted">칼로리 계산에 필요한 최소한의 정보예요.</p>
           </div>
-          <LabeledInput label="나이" value={age} onChange={setAge} placeholder="예: 28" />
+          <LabeledInput label="출생년도" value={birthYear} onChange={setBirthYear} placeholder="예: 1998" />
           <LabeledInput label="키 (cm)" value={heightCm} onChange={setHeightCm} placeholder="예: 172" />
           <div>
             <div className="mb-1.5 text-xs font-semibold text-muted-dark">성별</div>
