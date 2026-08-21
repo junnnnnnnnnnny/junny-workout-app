@@ -96,14 +96,14 @@ export default function AdminPage() {
     router.push("/onboarding");
   }
 
-  async function handleSeedMcdonalds() {
+  async function handleSeedChainMenu() {
     if (!user) return;
     setSeedingFoods(true);
     setSeedResult(null);
     try {
       const token = await user.getIdToken();
       const data = await postJson<{ added: number; skipped: number }>(
-        "/api/food/seed-mcdonalds",
+        "/api/food/seed-chain-menu",
         token,
         {}
       );
@@ -232,17 +232,17 @@ export default function AdminPage() {
       </section>
 
       <section className="flex flex-col gap-2.5 rounded-2xl border border-card-border bg-white p-4">
-        <div className="text-[13px] font-bold text-ink">공통 음식 DB: 맥도날드 메뉴 등록</div>
+        <div className="text-[13px] font-bold text-ink">공통 음식 DB: 프랜차이즈 메뉴 등록</div>
         <p className="text-xs text-muted">
-          제공해준 영양성분표 기준 52개 메뉴를 공통 음식 DB에 등록해요. 이미 등록된 항목은 건너뛰어서 여러 번 눌러도 안전해요.
+          제공해준 영양성분표 기준 맥도날드/버거킹 메뉴를 공통 음식 DB에 등록해요. 이미 등록된 항목은 건너뛰어서 여러 번 눌러도 안전해요.
           (표에 총 탄수화물/지방 수치가 없어서 두 값은 0으로 등록돼요.)
         </p>
         <button
-          onClick={handleSeedMcdonalds}
+          onClick={handleSeedChainMenu}
           disabled={seedingFoods}
           className="rounded-[10px] bg-brand py-2.5 text-center text-[13px] font-bold text-white disabled:opacity-50"
         >
-          {seedingFoods ? "등록 중..." : "맥도날드 메뉴 등록하기"}
+          {seedingFoods ? "등록 중..." : "프랜차이즈 메뉴 등록하기"}
         </button>
         {seedResult && <p className="text-center text-xs font-semibold text-brand">{seedResult}</p>}
       </section>
