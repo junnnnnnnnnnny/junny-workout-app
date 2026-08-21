@@ -15,7 +15,6 @@ const STAT_FIELDS: { key: keyof InbodyRecord; label: string; unit?: string }[] =
   { key: "bmrKcal", label: "기초대사량", unit: "kcal" },
   { key: "waistHipRatio", label: "복부지방률" },
   { key: "visceralFatLevel", label: "내장지방레벨" },
-  { key: "heightCm", label: "키", unit: "cm" },
 ];
 
 export default function InbodyPage() {

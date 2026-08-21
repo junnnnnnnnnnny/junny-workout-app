@@ -22,9 +22,23 @@ import type {
   InbodyRecord,
   MealItem,
   MealType,
+  UserProfile,
   WorkoutLog,
   WorkoutSetEntry,
 } from "@/types";
+
+// ---------- Profile (나이/키/성별) ----------
+
+export async function getUserProfile(uid: string): Promise<UserProfile> {
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) return {};
+  const data = snap.data();
+  return { age: data.age, heightCm: data.heightCm, sex: data.sex };
+}
+
+export async function saveUserProfile(uid: string, profile: UserProfile): Promise<void> {
+  await setDoc(doc(db, "users", uid), profile, { merge: true });
+}
 
 // ---------- Goals ----------
 

@@ -1,4 +1,5 @@
 // Firestore layout (per user, under users/{uid}):
+//   (root doc)               -> profile fields: displayName, email, photoURL, onboardingCompleted, age, heightCm, sex
 //   goals/current            -> Goal
 //   settings/gym             -> GymSettings (보유 기구, 즐겨찾기 운동)
 //   workoutLogs/{id}         -> WorkoutLog (근력 + 유산소/애플피트니스 통합)
@@ -7,12 +8,25 @@
 //   inbodyRecords/{id}       -> InbodyRecord
 
 export type GoalMode = "calorie" | "protein" | "both";
+export type Sex = "male" | "female";
+export type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "very_active";
+export type GoalPurpose = "lose_weight" | "build_muscle" | "recomp" | "maintain";
+
+export interface UserProfile {
+  age?: number;
+  heightCm?: number;
+  sex?: Sex;
+}
 
 export interface Goal {
   mode: GoalMode;
   calorieTarget?: number; // kcal/day
   proteinTarget?: number; // g/day
+  carbTarget?: number; // g/day
+  fatTarget?: number; // g/day
   targetWeightKg?: number;
+  purpose?: GoalPurpose;
+  activityLevel?: ActivityLevel;
   updatedAt: string; // ISO
 }
 
@@ -97,7 +111,6 @@ export interface FridgeItem {
 export interface InbodyRecord {
   id: string;
   date: string;
-  heightCm?: number; // 키 (OCR로는 인식 안 되어 항상 수동 입력)
   weightKg?: number;
   skeletalMuscleMassKg?: number;
   bodyFatMassKg?: number;

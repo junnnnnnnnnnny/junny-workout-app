@@ -3,40 +3,54 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { addInbodyRecord, saveGoal } from "@/lib/data";
+import { addInbodyRecord, saveGoal, saveUserProfile } from "@/lib/data";
 import { todayStr } from "@/lib/date-utils";
 import { InbodyPhotoUpload, type InbodyAnalysis } from "@/components/inbody/InbodyPhotoUpload";
 import { INBODY_FIELDS, type InbodyFieldKey } from "@/lib/inbody-fields";
-import type { GoalMode, InbodyRecord } from "@/types";
+import {
+  ACTIVITY_LEVELS,
+  bmrMethodLabel,
+  calculateBmr,
+  calculateCalorieTarget,
+  calculateMacros,
+  calculateTdee,
+  EXERCISE_GUIDANCE,
+  GOAL_PURPOSES,
+  type BmrMethod,
+} from "@/lib/calorie-calc";
+import type { ActivityLevel, GoalPurpose, InbodyRecord, Sex } from "@/types";
 
-const PURPOSES = ["체중 감량", "근육 증가", "체력 향상", "건강 유지"] as const;
-type Purpose = (typeof PURPOSES)[number];
-
-const PURPOSE_MULTIPLIERS: Record<Purpose, { cal: number; prot: number }> = {
-  "체중 감량": { cal: 26, prot: 2.0 },
-  "근육 증가": { cal: 32, prot: 2.2 },
-  "체력 향상": { cal: 30, prot: 1.8 },
-  "건강 유지": { cal: 28, prot: 1.6 },
-};
-
-const GOAL_MODE_OPTIONS: { value: GoalMode; label: string; hint: string }[] = [
-  { value: "calorie", label: "칼로리만", hint: "하루 목표 칼로리만 관리" },
-  { value: "protein", label: "단백질만", hint: "하루 목표 단백질량만 관리" },
-  { value: "both", label: "칼로리 + 단백질", hint: "둘 다 목표로 관리 (추천)" },
-];
+const TOTAL_STEPS = 5;
 
 export default function OnboardingPage() {
   const { user, loading, markOnboardingCompleted } = useAuth();
   const router = useRouter();
 
   const [step, setStep] = useState(0);
+
+  // STEP 1: 기본 정보
+  const [age, setAge] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [sex, setSex] = useState<Sex | null>(null);
+
+  // STEP 2: 체성분
   const [bodyMode, setBodyMode] = useState<"manual" | "photo">("manual");
   const [bodySource, setBodySource] = useState<"manual" | "ocr">("manual");
   const [bodyValues, setBodyValues] = useState<Partial<Record<InbodyFieldKey, string>>>({});
-  const [purpose, setPurpose] = useState<Purpose | null>(null);
-  const [goalMode, setGoalMode] = useState<GoalMode>("both");
-  const [calorieTarget, setCalorieTarget] = useState("2200");
-  const [proteinTarget, setProteinTarget] = useState("150");
+
+  // STEP 3: 목적
+  const [purpose, setPurpose] = useState<GoalPurpose | null>(null);
+
+  // STEP 4: 활동량
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null);
+
+  // STEP 5: 목표 확인 (계산 결과, 수정 가능)
+  const [bmrMethod, setBmrMethod] = useState<BmrMethod | null>(null);
+  const [calorieTarget, setCalorieTarget] = useState("");
+  const [proteinTarget, setProteinTarget] = useState("");
+  const [carbTarget, setCarbTarget] = useState("");
+  const [fatTarget, setFatTarget] = useState("");
+
   const [finishing, setFinishing] = useState(false);
   const [finishError, setFinishError] = useState<string | null>(null);
 
@@ -44,19 +58,8 @@ export default function OnboardingPage() {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
-  const needsCalorie = goalMode === "calorie" || goalMode === "both";
-  const needsProtein = goalMode === "protein" || goalMode === "both";
-
   function skip() {
     setStep((s) => s + 1);
-  }
-
-  function proceedToGoal() {
-    const w = Number(bodyValues.weightKg) || 74;
-    const mult = purpose ? PURPOSE_MULTIPLIERS[purpose] : { cal: 29, prot: 1.8 };
-    setCalorieTarget(String(Math.round(w * mult.cal)));
-    setProteinTarget(String(Math.round(w * mult.prot)));
-    setStep(3);
   }
 
   function setBodyField(key: InbodyFieldKey, value: string) {
@@ -77,16 +80,66 @@ export default function OnboardingPage() {
     setBodySource("ocr");
   }
 
+  function computeGoalAndProceed() {
+    const weightKg = bodyValues.weightKg ? Number(bodyValues.weightKg) : undefined;
+    const bodyFatMassKg = bodyValues.bodyFatMassKg ? Number(bodyValues.bodyFatMassKg) : undefined;
+    const bodyFatPercent = bodyValues.bodyFatPercent ? Number(bodyValues.bodyFatPercent) : undefined;
+    const bmrKcalInput = bodyValues.bmrKcal ? Number(bodyValues.bmrKcal) : undefined;
+
+    const bmrResult = calculateBmr({
+      weightKg,
+      heightCm: heightCm ? Number(heightCm) : undefined,
+      age: age ? Number(age) : undefined,
+      sex: sex ?? undefined,
+      bodyFatMassKg,
+      bodyFatPercent,
+      bmrKcal: bmrKcalInput,
+    });
+
+    const goalPurpose = purpose ?? "maintain";
+    const activity = activityLevel ?? "moderate";
+
+    if (bmrResult) {
+      const tdee = calculateTdee(bmrResult.bmr, activity);
+      const calories = calculateCalorieTarget(tdee, goalPurpose, sex ?? undefined);
+      const macros = calculateMacros({ calorieTarget: calories, weightKg, bodyFatMassKg, bodyFatPercent, purpose: goalPurpose });
+      setBmrMethod(bmrResult.method);
+      setCalorieTarget(String(calories));
+      setProteinTarget(String(macros.proteinG));
+      setCarbTarget(String(macros.carbG));
+      setFatTarget(String(macros.fatG));
+    } else {
+      // 계산에 필요한 정보(체중 등)가 전혀 없으면 대략적인 기본값
+      setBmrMethod(null);
+      setCalorieTarget("2200");
+      setProteinTarget("150");
+      setCarbTarget("220");
+      setFatTarget("60");
+    }
+    setStep(5);
+  }
+
   async function finishOnboarding() {
     if (!user) return;
     setFinishing(true);
     setFinishError(null);
     try {
-      await saveGoal(user.uid, {
-        mode: goalMode,
-        calorieTarget: needsCalorie ? Number(calorieTarget) : undefined,
-        proteinTarget: needsProtein ? Number(proteinTarget) : undefined,
+      await saveUserProfile(user.uid, {
+        age: age ? Number(age) : undefined,
+        heightCm: heightCm ? Number(heightCm) : undefined,
+        sex: sex ?? undefined,
       });
+
+      await saveGoal(user.uid, {
+        mode: "both",
+        calorieTarget: Number(calorieTarget) || undefined,
+        proteinTarget: Number(proteinTarget) || undefined,
+        carbTarget: Number(carbTarget) || undefined,
+        fatTarget: Number(fatTarget) || undefined,
+        purpose: purpose ?? undefined,
+        activityLevel: activityLevel ?? undefined,
+      });
+
       const hasBodyValue = INBODY_FIELDS.some((f) => bodyValues[f.key]?.trim());
       if (hasBodyValue) {
         const record: Omit<InbodyRecord, "id" | "createdAt"> = { date: todayStr(), source: bodySource };
@@ -98,6 +151,7 @@ export default function OnboardingPage() {
         }
         await addInbodyRecord(user.uid, record);
       }
+
       markOnboardingCompleted();
       router.replace("/dashboard");
     } catch (err) {
@@ -112,22 +166,23 @@ export default function OnboardingPage() {
 
   if (loading || !user) return null;
 
-  const summaryGoalMode = GOAL_MODE_OPTIONS.find((o) => o.value === goalMode)!;
-  const summaryGoal = `${summaryGoalMode.label}${needsCalorie ? ` · ${calorieTarget}kcal` : ""}${needsProtein ? ` · ${proteinTarget}g` : ""}`;
   const summaryBody =
     bodyValues.weightKg || bodyValues.bodyFatPercent
       ? `${bodyValues.weightKg || "-"}kg · 체지방 ${bodyValues.bodyFatPercent || "-"}%`
       : "입력 안 함";
+  const purposeLabel = GOAL_PURPOSES.find((p) => p.key === purpose)?.label ?? "선택 안 함";
+  const activityLabel = ACTIVITY_LEVELS.find((a) => a.key === activityLevel)?.label ?? "선택 안 함";
+  const summaryGoal = `${calorieTarget || "-"}kcal · 단백질 ${proteinTarget || "-"}g · 탄수화물 ${carbTarget || "-"}g · 지방 ${fatTarget || "-"}g`;
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-1 flex-col bg-ivory px-6 pb-10 pt-7">
-      {step >= 1 && step <= 3 && (
+      {step >= 1 && step <= TOTAL_STEPS && (
         <div className="mb-7 flex items-center justify-between">
           <div className="flex gap-1.5">
-            {[1, 2, 3].map((d) => (
+            {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((d) => (
               <div
                 key={d}
-                className="h-1 w-[22px] rounded-full"
+                className="h-1 w-[16px] rounded-full"
                 style={{ background: step >= d ? "var(--color-brand)" : "var(--color-input-border)" }}
               />
             ))}
@@ -163,7 +218,44 @@ export default function OnboardingPage() {
       {step === 1 && (
         <div className="flex flex-col gap-5">
           <div>
-            <div className="text-xs font-semibold text-muted">STEP 1 · 3</div>
+            <div className="text-xs font-semibold text-muted">STEP 1 · {TOTAL_STEPS}</div>
+            <div className="mt-1 text-xl font-bold text-ink">기본 정보를 알려주세요</div>
+            <p className="mt-1.5 text-[13px] text-muted">칼로리 계산에 필요한 최소한의 정보예요.</p>
+          </div>
+          <LabeledInput label="나이" value={age} onChange={setAge} placeholder="예: 28" />
+          <LabeledInput label="키 (cm)" value={heightCm} onChange={setHeightCm} placeholder="예: 172" />
+          <div>
+            <div className="mb-1.5 text-xs font-semibold text-muted-dark">성별</div>
+            <div className="flex gap-2">
+              {(["male", "female"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSex(s)}
+                  className="flex-1 rounded-xl border py-2.5 text-center text-[13px] font-bold"
+                  style={{
+                    borderColor: sex === s ? "var(--color-brand)" : "var(--color-input-border)",
+                    background: sex === s ? "var(--color-brand)" : "#fff",
+                    color: sex === s ? "#fff" : "var(--color-ink)",
+                  }}
+                >
+                  {s === "male" ? "남성" : "여성"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => setStep(2)}
+            className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white"
+          >
+            다음
+          </button>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="flex flex-col gap-5">
+          <div>
+            <div className="text-xs font-semibold text-muted">STEP 2 · {TOTAL_STEPS}</div>
             <div className="mt-1 text-xl font-bold text-ink">현재 체성분을 입력해주세요</div>
             <p className="mt-1.5 text-[13px] text-muted">
               인바디 결과가 있다면 사진으로 올리거나 직접 입력해주세요.
@@ -208,35 +300,10 @@ export default function OnboardingPage() {
             ))}
           </div>
 
-          <button onClick={() => setStep(2)} className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white">
-            다음
-          </button>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="flex flex-col gap-5">
-          <div>
-            <div className="text-xs font-semibold text-muted">STEP 2 · 3</div>
-            <div className="mt-1 text-xl font-bold text-ink">운동의 목적이 무엇인가요?</div>
-          </div>
-          <div className="flex flex-col gap-2">
-            {PURPOSES.map((p) => (
-              <button
-                key={p}
-                onClick={() => setPurpose(p)}
-                className="rounded-2xl border px-4 py-3.5 text-left text-sm font-bold"
-                style={{
-                  borderColor: purpose === p ? "var(--color-brand)" : "var(--color-input-border)",
-                  background: purpose === p ? "var(--color-brand)" : "#fff",
-                  color: purpose === p ? "#fff" : "var(--color-ink)",
-                }}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-          <button onClick={proceedToGoal} className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white">
+          <button
+            onClick={() => setStep(3)}
+            className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white"
+          >
             다음
           </button>
         </div>
@@ -245,48 +312,116 @@ export default function OnboardingPage() {
       {step === 3 && (
         <div className="flex flex-col gap-5">
           <div>
-            <div className="text-xs font-semibold text-muted">STEP 3 · 3</div>
-            <div className="mt-1 text-xl font-bold text-ink">목표를 확인해주세요</div>
-            <div className="mt-2 rounded-xl bg-brand-soft px-3 py-2.5 text-xs font-semibold leading-[1.5] text-brand">
-              체성분과 운동 목적을 기준으로 자동 계산했어요. 필요하면 직접 수정하세요.
-            </div>
+            <div className="text-xs font-semibold text-muted">STEP 3 · {TOTAL_STEPS}</div>
+            <div className="mt-1 text-xl font-bold text-ink">어떤 목표를 원하세요?</div>
           </div>
           <div className="flex flex-col gap-2">
-            {GOAL_MODE_OPTIONS.map((opt) => (
+            {GOAL_PURPOSES.map((opt) => (
               <button
-                key={opt.value}
-                onClick={() => setGoalMode(opt.value)}
+                key={opt.key}
+                onClick={() => setPurpose(opt.key)}
                 className="rounded-2xl border px-4 py-3.5 text-left"
                 style={{
-                  borderColor: goalMode === opt.value ? "var(--color-brand)" : "var(--color-input-border)",
-                  background: goalMode === opt.value ? "var(--color-brand)" : "#fff",
+                  borderColor: purpose === opt.key ? "var(--color-brand)" : "var(--color-input-border)",
+                  background: purpose === opt.key ? "var(--color-brand)" : "#fff",
                 }}
               >
-                <div className="text-sm font-bold" style={{ color: goalMode === opt.value ? "#fff" : "var(--color-ink)" }}>
+                <div className="text-sm font-bold" style={{ color: purpose === opt.key ? "#fff" : "var(--color-ink)" }}>
                   {opt.label}
                 </div>
                 <div
                   className="mt-0.5 text-xs"
-                  style={{ color: goalMode === opt.value ? "rgba(255,255,255,.75)" : "var(--color-muted)" }}
+                  style={{ color: purpose === opt.key ? "rgba(255,255,255,.75)" : "var(--color-muted)" }}
                 >
                   {opt.hint}
                 </div>
               </button>
             ))}
           </div>
-          {needsCalorie && (
-            <LabeledInput label="목표 칼로리 (kcal/일)" value={calorieTarget} onChange={setCalorieTarget} placeholder="예: 2200" />
-          )}
-          {needsProtein && (
-            <LabeledInput label="목표 단백질 (g/일)" value={proteinTarget} onChange={setProteinTarget} placeholder="예: 150" />
-          )}
-          <button onClick={() => setStep(4)} className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white">
+          <button
+            onClick={() => setStep(4)}
+            className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white"
+          >
             다음
           </button>
         </div>
       )}
 
       {step === 4 && (
+        <div className="flex flex-col gap-5">
+          <div>
+            <div className="text-xs font-semibold text-muted">STEP 4 · {TOTAL_STEPS}</div>
+            <div className="mt-1 text-xl font-bold text-ink">평소 활동량은 어느 정도인가요?</div>
+            <p className="mt-1.5 text-[13px] text-muted">하루 소비 칼로리를 계산하는 데 필요해요.</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {ACTIVITY_LEVELS.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setActivityLevel(opt.key)}
+                className="rounded-2xl border px-4 py-3.5 text-left"
+                style={{
+                  borderColor: activityLevel === opt.key ? "var(--color-brand)" : "var(--color-input-border)",
+                  background: activityLevel === opt.key ? "var(--color-brand)" : "#fff",
+                }}
+              >
+                <div
+                  className="text-sm font-bold"
+                  style={{ color: activityLevel === opt.key ? "#fff" : "var(--color-ink)" }}
+                >
+                  {opt.label}
+                </div>
+                <div
+                  className="mt-0.5 text-xs"
+                  style={{ color: activityLevel === opt.key ? "rgba(255,255,255,.75)" : "var(--color-muted)" }}
+                >
+                  {opt.hint}
+                </div>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={computeGoalAndProceed}
+            className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white"
+          >
+            다음
+          </button>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div className="flex flex-col gap-5">
+          <div>
+            <div className="text-xs font-semibold text-muted">STEP 5 · {TOTAL_STEPS}</div>
+            <div className="mt-1 text-xl font-bold text-ink">목표를 확인해주세요</div>
+            <div className="mt-2 rounded-xl bg-brand-soft px-3 py-2.5 text-xs font-semibold leading-[1.5] text-brand">
+              {bmrMethod
+                ? bmrMethodLabel(bmrMethod)
+                : "입력된 정보가 부족해 대략적인 기본값으로 채웠어요. 필요하면 직접 수정하세요."}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <LabeledInput label="목표 칼로리 (kcal)" value={calorieTarget} onChange={setCalorieTarget} placeholder="예: 2200" />
+            <LabeledInput label="단백질 (g)" value={proteinTarget} onChange={setProteinTarget} placeholder="예: 150" />
+            <LabeledInput label="탄수화물 (g)" value={carbTarget} onChange={setCarbTarget} placeholder="예: 220" />
+            <LabeledInput label="지방 (g)" value={fatTarget} onChange={setFatTarget} placeholder="예: 60" />
+          </div>
+          {purpose && (
+            <div className="rounded-xl border border-card-border bg-white p-3.5 text-xs text-muted-dark">
+              <strong className="text-ink">추천 운동:</strong> {EXERCISE_GUIDANCE[purpose].frequency} ·{" "}
+              {EXERCISE_GUIDANCE[purpose].split}
+            </div>
+          )}
+          <button
+            onClick={() => setStep(6)}
+            className="rounded-xl bg-brand py-3.5 text-center text-[15px] font-bold text-white"
+          >
+            다음
+          </button>
+        </div>
+      )}
+
+      {step === 6 && (
         <div className="flex flex-1 flex-col justify-center gap-[22px]">
           <div className="text-center">
             <div className="text-[34px]">✓</div>
@@ -295,8 +430,9 @@ export default function OnboardingPage() {
           </div>
           <div className="flex flex-col gap-2.5 rounded-2xl border border-card-border bg-white p-4">
             <SummaryRow label="체성분" value={summaryBody} />
-            <SummaryRow label="운동 목적" value={purpose || "선택 안 함"} />
-            <SummaryRow label="목표" value={summaryGoal} />
+            <SummaryRow label="목표" value={purposeLabel} />
+            <SummaryRow label="활동량" value={activityLabel} />
+            <SummaryRow label="영양 목표" value={summaryGoal} />
           </div>
           {finishError && <p className="text-center text-xs text-danger">{finishError}</p>}
           <button

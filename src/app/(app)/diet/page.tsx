@@ -102,8 +102,8 @@ export default function DietPage() {
   const dayFat = dayEntries.reduce((sum, l) => sum + l.totalFatG, 0);
   const calorieTarget = goal?.calorieTarget ?? 0;
   const proteinTarget = goal?.proteinTarget ?? 0;
-  const carbTarget = Math.round((calorieTarget * 0.45) / 4);
-  const fatTarget = Math.round((calorieTarget * 0.25) / 9);
+  const carbTarget = goal?.carbTarget ?? Math.round((calorieTarget * 0.45) / 4);
+  const fatTarget = goal?.fatTarget ?? Math.round((calorieTarget * 0.25) / 9);
 
   return (
     <div className="flex flex-col gap-4">

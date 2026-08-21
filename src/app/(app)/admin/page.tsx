@@ -6,14 +6,16 @@ import { useAuth } from "@/lib/auth-context";
 import {
   getGoal,
   getGymSettings,
+  getUserProfile,
   restartOnboarding,
   saveGoal,
   saveGymSettings,
+  saveUserProfile,
   toggleFavoriteExercise,
 } from "@/lib/data";
 import { getExerciseById } from "@/data/exercises";
 import { GoalForm } from "@/components/goals/GoalForm";
-import type { Goal, GymSettings } from "@/types";
+import type { Goal, GymSettings, Sex, UserProfile } from "@/types";
 
 const EQUIPMENT_OPTIONS = ["바벨", "덤벨", "머신", "케이블", "맨몸"];
 
@@ -22,17 +24,24 @@ export default function AdminPage() {
   const router = useRouter();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [gymSettings, setGymSettings] = useState<GymSettings>({ equipment: [], favoriteExerciseIds: [] });
+  const [profileForm, setProfileForm] = useState({ age: "", heightCm: "", sex: null as Sex | null });
+  const [profileSaved, setProfileSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [goalSaved, setGoalSaved] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     let ignore = false;
-    Promise.all([getGoal(user.uid), getGymSettings(user.uid)])
-      .then(([g, gym]) => {
+    Promise.all([getGoal(user.uid), getGymSettings(user.uid), getUserProfile(user.uid)])
+      .then(([g, gym, p]) => {
         if (ignore) return;
         setGoal(g);
         setGymSettings(gym);
+        setProfileForm({
+          age: p.age?.toString() ?? "",
+          heightCm: p.heightCm?.toString() ?? "",
+          sex: p.sex ?? null,
+        });
       })
       .finally(() => {
         if (!ignore) setLoading(false);
@@ -41,6 +50,17 @@ export default function AdminPage() {
       ignore = true;
     };
   }, [user]);
+
+  async function handleProfileSave() {
+    if (!user) return;
+    const next: UserProfile = {
+      age: profileForm.age ? Number(profileForm.age) : undefined,
+      heightCm: profileForm.heightCm ? Number(profileForm.heightCm) : undefined,
+      sex: profileForm.sex ?? undefined,
+    };
+    await saveUserProfile(user.uid, next);
+    setProfileSaved(true);
+  }
 
   async function handleGoalSubmit(g: Omit<Goal, "updatedAt">) {
     if (!user) return;
@@ -83,6 +103,59 @@ export default function AdminPage() {
         <div className="text-xl font-bold text-ink">관리 메뉴</div>
         <p className="mt-0.5 text-[13px] text-muted">목표와 환경설정을 관리해요.</p>
       </div>
+
+      <section className="flex flex-col gap-3.5 rounded-2xl border border-card-border bg-white p-4">
+        <div className="text-[13px] font-bold text-ink">기본 정보</div>
+        <p className="text-xs text-muted">칼로리 계산에 쓰이는 정보예요. 값이 바뀌면 관리 메뉴에서 목표를 다시 계산해 저장해주세요.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div className="mb-1.5 text-xs font-semibold text-muted-dark">나이</div>
+            <input
+              value={profileForm.age}
+              onChange={(e) => setProfileForm((p) => ({ ...p, age: e.target.value }))}
+              inputMode="numeric"
+              placeholder="예: 28"
+              className="w-full rounded-[10px] border border-input-border bg-ivory px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none"
+            />
+          </div>
+          <div>
+            <div className="mb-1.5 text-xs font-semibold text-muted-dark">키 (cm)</div>
+            <input
+              value={profileForm.heightCm}
+              onChange={(e) => setProfileForm((p) => ({ ...p, heightCm: e.target.value }))}
+              inputMode="decimal"
+              placeholder="예: 172"
+              className="w-full rounded-[10px] border border-input-border bg-ivory px-3.5 py-2.5 text-sm text-ink focus:border-brand focus:outline-none"
+            />
+          </div>
+        </div>
+        <div>
+          <div className="mb-1.5 text-xs font-semibold text-muted-dark">성별</div>
+          <div className="flex gap-2">
+            {(["male", "female"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setProfileForm((p) => ({ ...p, sex: s }))}
+                className="flex-1 rounded-xl border py-2.5 text-center text-[13px] font-bold"
+                style={{
+                  borderColor: profileForm.sex === s ? "var(--color-brand)" : "var(--color-input-border)",
+                  background: profileForm.sex === s ? "var(--color-brand)" : "#fff",
+                  color: profileForm.sex === s ? "#fff" : "var(--color-ink)",
+                }}
+              >
+                {s === "male" ? "남성" : "여성"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
+          onClick={handleProfileSave}
+          className="rounded-[10px] bg-brand py-2.5 text-center text-[13px] font-bold text-white"
+        >
+          기본 정보 저장
+        </button>
+        {profileSaved && <p className="text-center text-xs font-semibold text-brand">저장했어요!</p>}
+      </section>
 
       <section className="flex flex-col gap-3.5 rounded-2xl border border-card-border bg-white p-4">
         <div className="text-[13px] font-bold text-ink">목표 설정</div>
