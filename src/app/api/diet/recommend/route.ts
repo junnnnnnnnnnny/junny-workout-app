@@ -5,6 +5,7 @@ import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { requireUserId } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const RecommendSchema = z.object({
   title: z.string().describe("추천 메뉴 이름 (한국어)"),

@@ -5,6 +5,7 @@ import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { requireUserId } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const ActivitySchema = z.object({
   activityType: z.string().describe("운동/활동 종류 (한국어), 예: '달리기', '사이클', '걷기'"),

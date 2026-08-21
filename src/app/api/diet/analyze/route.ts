@@ -5,6 +5,7 @@ import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { requireUserId } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const MealItemSchema = z.object({
   name: z.string().describe("음식 이름 (한국어)"),

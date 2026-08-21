@@ -6,6 +6,9 @@ import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { requireUserId } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
+// Claude Vision으로 사진 여러 장을 분석하면 10초 넘게 걸릴 수 있어 Vercel Hobby 플랜의
+// 기본 함수 제한시간(10초)에 걸린다. 허용 가능한 최대치로 늘려둔다.
+export const maxDuration = 60;
 
 const InbodySchema = z.object({
   weightKg: z.number().nullable().describe("체중 (kg)"),
@@ -69,7 +72,7 @@ export async function POST(request: Request) {
       model: CLAUDE_MODEL,
       max_tokens: 2048,
       output_config: {
-        effort: "medium",
+        effort: "low",
         format: zodOutputFormat(InbodySchema),
       },
       system:
