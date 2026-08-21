@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { addInbodyRecord, saveGoal } from "@/lib/data";
 import { todayStr } from "@/lib/date-utils";
-import { fileToResizedBase64 } from "@/lib/image-utils";
-import { postJson } from "@/lib/api-client";
+import { InbodyPhotoUpload } from "@/components/inbody/InbodyPhotoUpload";
 import type { GoalMode } from "@/types";
 
 const PURPOSES = ["체중 감량", "근육 증가", "체력 향상", "건강 유지"] as const;
@@ -31,8 +30,7 @@ export default function OnboardingPage() {
 
   const [step, setStep] = useState(0);
   const [bodyMode, setBodyMode] = useState<"manual" | "photo">("manual");
-  const [photoUploading, setPhotoUploading] = useState(false);
-  const [photoNotice, setPhotoNotice] = useState<string | null>(null);
+  const [bodySource, setBodySource] = useState<"manual" | "ocr">("manual");
   const [weightKg, setWeightKg] = useState("");
   const [muscleMass, setMuscleMass] = useState("");
   const [bodyFat, setBodyFat] = useState("");
@@ -62,28 +60,15 @@ export default function OnboardingPage() {
     setStep(3);
   }
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setPhotoUploading(true);
-    setPhotoNotice(null);
-    try {
-      const { base64, mediaType } = await fileToResizedBase64(file);
-      const token = await user.getIdToken();
-      const data = await postJson<{
-        weightKg: number | null;
-        skeletalMuscleMassKg: number | null;
-        bodyFatPercent: number | null;
-      }>("/api/inbody/analyze", token, { imageBase64: base64, mediaType });
-      if (data.weightKg) setWeightKg(String(data.weightKg));
-      if (data.skeletalMuscleMassKg) setMuscleMass(String(data.skeletalMuscleMassKg));
-      if (data.bodyFatPercent) setBodyFat(String(data.bodyFatPercent));
-      setPhotoNotice("사진에서 수치를 인식했어요. 아래에서 확인·수정해주세요.");
-    } catch (err) {
-      setPhotoNotice(err instanceof Error ? err.message : "분석에 실패했어요.");
-    } finally {
-      setPhotoUploading(false);
-    }
+  function handlePhotoAnalyzed(data: {
+    weightKg: number | null;
+    skeletalMuscleMassKg: number | null;
+    bodyFatPercent: number | null;
+  }) {
+    if (data.weightKg) setWeightKg(String(data.weightKg));
+    if (data.skeletalMuscleMassKg) setMuscleMass(String(data.skeletalMuscleMassKg));
+    if (data.bodyFatPercent) setBodyFat(String(data.bodyFatPercent));
+    setBodySource("ocr");
   }
 
   async function finishOnboarding() {
@@ -102,7 +87,7 @@ export default function OnboardingPage() {
           weightKg: Number(weightKg) || 0,
           skeletalMuscleMassKg: muscleMass ? Number(muscleMass) : undefined,
           bodyFatPercent: bodyFat ? Number(bodyFat) : undefined,
-          source: bodyMode === "photo" ? "ocr" : "manual",
+          source: bodySource,
         });
       }
       markOnboardingCompleted();
@@ -198,16 +183,7 @@ export default function OnboardingPage() {
             </button>
           </div>
 
-          {bodyMode === "photo" && (
-            <label className="cursor-pointer rounded-2xl border border-dashed border-dashed bg-white p-6 text-center" style={{ borderColor: "var(--color-dashed)" }}>
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-              <div className="text-[13px] font-bold text-muted-dark">인바디 결과지 사진 올리기</div>
-              <div className="mt-1 text-[11px] text-muted">
-                {photoUploading ? "분석 중..." : "탭하여 업로드 (자동 수치 인식)"}
-              </div>
-              {photoNotice && <div className="mt-2 text-xs font-semibold text-brand">{photoNotice}</div>}
-            </label>
-          )}
+          {bodyMode === "photo" && <InbodyPhotoUpload onAnalyzed={handlePhotoAnalyzed} />}
 
           <LabeledInput label="체중 (kg)" value={weightKg} onChange={setWeightKg} placeholder="예: 74.5" />
           <LabeledInput label="골격근량 (kg)" value={muscleMass} onChange={setMuscleMass} placeholder="예: 33.2" />

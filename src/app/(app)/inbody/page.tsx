@@ -4,15 +4,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { addInbodyRecord, getGoal, getInbodyRecords } from "@/lib/data";
 import { todayStr } from "@/lib/date-utils";
-import { fileToResizedBase64 } from "@/lib/image-utils";
-import { postJson } from "@/lib/api-client";
+import { InbodyPhotoUpload } from "@/components/inbody/InbodyPhotoUpload";
 import type { Goal, InbodyRecord } from "@/types";
 
 export default function InbodyPage() {
   const { user } = useAuth();
   const [records, setRecords] = useState<InbodyRecord[]>([]);
   const [goal, setGoal] = useState<Goal | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,39 +31,27 @@ export default function InbodyPage() {
     setRecords(await getInbodyRecords(user.uid));
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setUploading(true);
-    setNotice(null);
-    try {
-      const { base64, mediaType } = await fileToResizedBase64(file);
-      const token = await user.getIdToken();
-      const data = await postJson<{
-        weightKg: number | null;
-        skeletalMuscleMassKg: number | null;
-        bodyFatPercent: number | null;
-        bodyFatMassKg: number | null;
-      }>("/api/inbody/analyze", token, { imageBase64: base64, mediaType });
-      if (!data.weightKg) {
-        setNotice("사진에서 수치를 읽지 못했어요. 더 선명한 사진으로 다시 시도해주세요.");
-        return;
-      }
-      await addInbodyRecord(user.uid, {
-        date: todayStr(),
-        weightKg: data.weightKg,
-        skeletalMuscleMassKg: data.skeletalMuscleMassKg ?? undefined,
-        bodyFatPercent: data.bodyFatPercent ?? undefined,
-        bodyFatMassKg: data.bodyFatMassKg ?? undefined,
-        source: "ocr",
-      });
-      setNotice("인바디 결과를 등록했어요.");
-      refresh();
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : "분석에 실패했어요.");
-    } finally {
-      setUploading(false);
+  async function handleAnalyzed(data: {
+    weightKg: number | null;
+    skeletalMuscleMassKg: number | null;
+    bodyFatPercent: number | null;
+    bodyFatMassKg: number | null;
+  }) {
+    if (!user) return;
+    if (!data.weightKg) {
+      setNotice("사진에서 수치를 읽지 못했어요. 더 선명한 사진으로 다시 시도해주세요.");
+      return;
     }
+    await addInbodyRecord(user.uid, {
+      date: todayStr(),
+      weightKg: data.weightKg,
+      skeletalMuscleMassKg: data.skeletalMuscleMassKg ?? undefined,
+      bodyFatPercent: data.bodyFatPercent ?? undefined,
+      bodyFatMassKg: data.bodyFatMassKg ?? undefined,
+      source: "ocr",
+    });
+    setNotice("인바디 결과를 등록했어요.");
+    refresh();
   }
 
   const latest = records[0];
@@ -80,17 +66,8 @@ export default function InbodyPage() {
         <p className="mt-0.5 text-[13px] text-muted">결과지를 촬영해 올리면 자동으로 기록해드려요.</p>
       </div>
 
-      <label
-        className="cursor-pointer rounded-2xl border border-dashed bg-white p-7 text-center"
-        style={{ borderColor: "var(--color-dashed)" }}
-      >
-        <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-        <div className="text-[13px] font-bold text-muted-dark">인바디 결과지 사진 올리기</div>
-        <div className="mt-1 text-[11px] text-muted">
-          {uploading ? "분석 중..." : "탭하여 업로드 (자동 수치 인식)"}
-        </div>
-        {notice && <div className="mt-2 text-xs font-semibold text-brand">{notice}</div>}
-      </label>
+      <InbodyPhotoUpload onAnalyzed={handleAnalyzed} />
+      {notice && <div className="text-xs font-semibold text-brand">{notice}</div>}
 
       {latest && (
         <div className="rounded-2xl border border-card-border bg-white p-4">

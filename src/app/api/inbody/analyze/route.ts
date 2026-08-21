@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { requireUserId } from "@/lib/firebase/admin";
 
@@ -20,6 +21,8 @@ function isAllowedMediaType(value: string): value is AllowedMediaType {
   return (ALLOWED_MEDIA_TYPES as readonly string[]).includes(value);
 }
 
+const MAX_IMAGES = 3;
+
 export async function POST(request: Request) {
   try {
     await requireUserId(request);
@@ -28,12 +31,38 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const imageBase64 = typeof body?.imageBase64 === "string" ? body.imageBase64 : "";
-  const mediaType = typeof body?.mediaType === "string" ? body.mediaType : "";
+  const rawImages: unknown[] = Array.isArray(body?.images) ? body.images : [];
+  const images = rawImages
+    .slice(0, MAX_IMAGES)
+    .filter(
+      (img): img is { base64: string; mediaType: AllowedMediaType } =>
+        typeof img === "object" &&
+        img !== null &&
+        typeof (img as { base64?: unknown }).base64 === "string" &&
+        (img as { base64: string }).base64.length > 0 &&
+        isAllowedMediaType((img as { mediaType?: unknown }).mediaType as string)
+    );
 
-  if (!imageBase64 || !isAllowedMediaType(mediaType)) {
+  if (images.length === 0) {
     return NextResponse.json({ error: "이미지가 올바르지 않아요." }, { status: 400 });
   }
+
+  const content: Anthropic.MessageParam["content"] = [
+    ...images.map(
+      (img) =>
+        ({
+          type: "image",
+          source: { type: "base64", media_type: img.mediaType, data: img.base64 },
+        }) as const
+    ),
+    {
+      type: "text",
+      text:
+        images.length > 1
+          ? "이 사진들은 같은 인바디 결과지를 여러 장으로 나눠 찍은 것일 수 있어요. 모든 사진을 종합해서 체중, 골격근량, 체지방률, 체지방량을 읽어줘."
+          : "이 인바디 결과지에서 체중, 골격근량, 체지방률, 체지방량을 읽어줘.",
+    },
+  ];
 
   try {
     const response = await anthropic.messages.parse({
@@ -44,16 +73,8 @@ export async function POST(request: Request) {
         format: zodOutputFormat(InbodySchema),
       },
       system:
-        "당신은 인바디(InBody) 체성분 분석 결과지 사진에서 수치를 읽어내는 어시스턴트입니다. 사진에서 체중(kg), 골격근량(kg), 체지방률(%), 체지방량(kg)을 정확히 읽어 반환하세요. 사진에서 값을 확인할 수 없으면 null로 두세요.",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: imageBase64 } },
-            { type: "text", text: "이 인바디 결과지에서 체중, 골격근량, 체지방률, 체지방량을 읽어줘." },
-          ],
-        },
-      ],
+        "당신은 인바디(InBody) 체성분 분석 결과지 사진에서 수치를 읽어내는 어시스턴트입니다. 사진 한 장에 모든 정보가 안 담겨 여러 장으로 나눠 찍힌 경우, 모든 사진의 정보를 종합해서 하나의 결과로 합쳐주세요. 체중(kg), 골격근량(kg), 체지방률(%), 체지방량(kg)을 정확히 읽어 반환하세요. 어떤 사진에서도 값을 확인할 수 없으면 null로 두세요.",
+      messages: [{ role: "user", content }],
     });
 
     if (!response.parsed_output) {
