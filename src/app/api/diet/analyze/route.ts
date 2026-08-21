@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
+import { anthropic, claudeErrorMessage, CLAUDE_MODEL } from "@/lib/anthropic";
 import { requireUserId } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -53,6 +53,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ meals: response.parsed_output.meals });
   } catch (error) {
     console.error("diet analyze failed", error);
-    return NextResponse.json({ error: "식단 분석 중 오류가 발생했어요." }, { status: 500 });
+    return NextResponse.json(
+      { error: claudeErrorMessage(error, "식단 분석 중 오류가 발생했어요.") },
+      { status: 500 }
+    );
   }
 }

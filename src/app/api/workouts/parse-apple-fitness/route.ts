@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic, CLAUDE_MODEL } from "@/lib/anthropic";
+import { anthropic, claudeErrorMessage, CLAUDE_MODEL } from "@/lib/anthropic";
 import { requireUserId } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -52,6 +52,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ activities: response.parsed_output.activities });
   } catch (error) {
     console.error("apple fitness parse failed", error);
-    return NextResponse.json({ error: "분석 중 오류가 발생했어요." }, { status: 500 });
+    return NextResponse.json(
+      { error: claudeErrorMessage(error, "분석 중 오류가 발생했어요.") },
+      { status: 500 }
+    );
   }
 }
