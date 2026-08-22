@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminFirestore, requireUserId } from "@/lib/firebase/admin";
+import { isAdmin } from "@/lib/admin";
 
 export const runtime = "nodejs";
 
@@ -333,6 +334,9 @@ export async function POST(request: Request) {
     uid = await requireUserId(request);
   } catch {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+  }
+  if (!isAdmin(uid)) {
+    return NextResponse.json({ error: "관리자만 사용할 수 있어요." }, { status: 403 });
   }
 
   try {
