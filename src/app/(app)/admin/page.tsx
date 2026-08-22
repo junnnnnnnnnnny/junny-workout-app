@@ -33,6 +33,8 @@ export default function AdminPage() {
   const [goalSaved, setGoalSaved] = useState(false);
   const [seedingFoods, setSeedingFoods] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [seedingExercises, setSeedingExercises] = useState(false);
+  const [seedExerciseResult, setSeedExerciseResult] = useState<string | null>(null);
   const [sharedExercises, setSharedExercises] = useState<Exercise[]>([]);
 
   useEffect(() => {
@@ -122,6 +124,30 @@ export default function AdminPage() {
       setSeedResult(err instanceof Error ? err.message : "등록에 실패했어요.");
     } finally {
       setSeedingFoods(false);
+    }
+  }
+
+  async function handleSeedExercises() {
+    if (!user) return;
+    setSeedingExercises(true);
+    setSeedExerciseResult(null);
+    try {
+      const token = await user.getIdToken();
+      const data = await postJson<{ added: number; skipped: number }>(
+        "/api/exercise/seed-common",
+        token,
+        {}
+      );
+      setSeedExerciseResult(`${data.added}개 추가, ${data.skipped}개는 이미 있어서 건너뜀`);
+      if (data.added > 0) {
+        getSharedExercises()
+          .then(setSharedExercises)
+          .catch((err) => console.error("failed to reload shared exercises", err));
+      }
+    } catch (err) {
+      setSeedExerciseResult(err instanceof Error ? err.message : "등록에 실패했어요.");
+    } finally {
+      setSeedingExercises(false);
     }
   }
 
@@ -258,6 +284,25 @@ export default function AdminPage() {
             {seedingFoods ? "등록 중..." : "프랜차이즈 메뉴 등록하기"}
           </button>
           {seedResult && <p className="text-center text-xs font-semibold text-brand">{seedResult}</p>}
+        </section>
+      )}
+
+      {canManageSharedData && (
+        <section className="flex flex-col gap-2.5 rounded-2xl border border-card-border bg-white p-4">
+          <div className="text-[13px] font-bold text-ink">공통 운동 DB: 운동 목록 등록</div>
+          <p className="text-xs text-muted">
+            전달받은 운동 목록을 공통 운동 DB에 등록해요. 이미 등록된 이름은 건너뛰어서 여러 번 눌러도 안전해요.
+          </p>
+          <button
+            onClick={handleSeedExercises}
+            disabled={seedingExercises}
+            className="rounded-[10px] bg-brand py-2.5 text-center text-[13px] font-bold text-white disabled:opacity-50"
+          >
+            {seedingExercises ? "등록 중..." : "운동 목록 등록하기"}
+          </button>
+          {seedExerciseResult && (
+            <p className="text-center text-xs font-semibold text-brand">{seedExerciseResult}</p>
+          )}
         </section>
       )}
 
