@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 export default function LoginPage() {
-  const { user, loading, onboardingCompleted, signInWithGoogle } = useAuth();
+  const { user, loading, onboardingCompleted, authError, signInWithGoogle } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -35,6 +35,7 @@ export default function LoginPage() {
         </svg>
         Google로 시작하기
       </button>
+      {authError && <p className="max-w-[280px] text-xs text-danger">{authError}</p>}
     </main>
   );
 }

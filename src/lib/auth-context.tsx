@@ -38,7 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    getRedirectResult(auth).catch((err) => console.error("Google 리다이렉트 로그인 실패:", err));
+    getRedirectResult(auth).catch((err) => {
+      console.error("Google 리다이렉트 로그인 실패:", err);
+      setAuthError(err instanceof Error ? err.message : "Google 로그인에 실패했어요.");
+    });
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
@@ -72,7 +75,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    await signInWithRedirect(auth, new GoogleAuthProvider());
+    setAuthError(null);
+    try {
+      await signInWithRedirect(auth, new GoogleAuthProvider());
+    } catch (err) {
+      console.error("Google 로그인 시작 실패:", err);
+      setAuthError(err instanceof Error ? err.message : "Google 로그인에 실패했어요.");
+      throw err;
+    }
   }, []);
 
   const signOutUser = useCallback(async () => {
