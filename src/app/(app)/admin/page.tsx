@@ -164,6 +164,11 @@ export default function AdminPage() {
         <p className="mt-0.5 text-[13px] text-muted">목표와 환경설정을 관리해요.</p>
       </div>
 
+      {/* 임시 디버그 표시 — 관리자 판별이 왜 실패하는지 확인되면 제거 예정 */}
+      <p className="break-all rounded-lg bg-brand-soft px-2.5 py-2 text-[10px] text-brand">
+        디버그: 내 UID = {user?.uid ?? "(없음)"} · 서버에 설정된 관리자 UID = {process.env.NEXT_PUBLIC_ADMIN_UID ?? "(없음, 환경변수 미설정)"} · 관리자 여부 = {String(canManageSharedData)}
+      </p>
+
       <section className="flex flex-col gap-3.5 rounded-2xl border border-card-border bg-white p-4">
         <div className="text-[13px] font-bold text-ink">기본 정보</div>
         <p className="text-xs text-muted">칼로리 계산에 쓰이는 정보예요. 값이 바뀌면 관리 메뉴에서 목표를 다시 계산해 저장해주세요.</p>
