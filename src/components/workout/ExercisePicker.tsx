@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { EXERCISES } from "@/data/exercises";
 import { MUSCLE_LABELS } from "@/lib/muscle-labels";
 import { ManualExerciseAdd } from "@/components/workout/ManualExerciseAdd";
+import { isAdmin } from "@/lib/admin";
 import type { Exercise } from "@/types";
 
 type Filter = "all" | "favorites" | "mygym";
@@ -30,6 +32,8 @@ export function ExercisePicker({
   onToggleFavorite,
   onSelect,
 }: ExercisePickerProps) {
+  const { user } = useAuth();
+  const canAddExercise = isAdmin(user?.uid);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [addingExercise, setAddingExercise] = useState(false);
@@ -107,15 +111,19 @@ export function ExercisePicker({
             <p className="text-xs text-muted">
               {query.trim() ? `'${query.trim()}'에 대한 검색 결과가 없어요.` : "검색 결과가 없어요."}
             </p>
-            <button
-              onClick={() => setAddingExercise(true)}
-              className="rounded-full border border-brand px-4 py-2 text-xs font-bold text-brand"
-            >
-              수동으로 추가하기
-            </button>
+            {canAddExercise ? (
+              <button
+                onClick={() => setAddingExercise(true)}
+                className="rounded-full border border-brand px-4 py-2 text-xs font-bold text-brand"
+              >
+                수동으로 추가하기
+              </button>
+            ) : (
+              <p className="text-[11px] text-muted">새 운동 등록은 관리자만 할 수 있어요.</p>
+            )}
           </div>
         )}
-        {addingExercise && (
+        {canAddExercise && addingExercise && (
           <ManualExerciseAdd
             initialName={query.trim()}
             onCancel={() => setAddingExercise(false)}

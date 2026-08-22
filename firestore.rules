@@ -19,10 +19,13 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // 전체 사용자가 함께 쓰는 공통 운동 DB. foods와 동일한 규칙.
+    // 전체 사용자가 함께 쓰는 공통 운동 DB. 누구나 읽을 수 있지만, 새 운동 등록은
+    // 관리자 계정만 가능하다(음식 DB와 달리 아무나 추가하지 못하게 제한).
     match /exercises/{exerciseId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+      allow create: if request.auth != null
+        && request.auth.uid == "46Wso3o8v9Z5kS8X2TrxNcfh3TK2"
+        && request.resource.data.createdBy == request.auth.uid;
       allow update, delete: if false;
     }
   }
