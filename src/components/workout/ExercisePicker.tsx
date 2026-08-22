@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { EXERCISES } from "@/data/exercises";
 import { MUSCLE_LABELS } from "@/lib/muscle-labels";
+import { ManualExerciseAdd } from "@/components/workout/ManualExerciseAdd";
 import type { Exercise } from "@/types";
 
 type Filter = "all" | "favorites" | "mygym";
@@ -15,22 +16,40 @@ const FILTERS: { key: Filter; label: string }[] = [
 interface ExercisePickerProps {
   favoriteIds: string[];
   equipment: string[];
+  sharedExercises: Exercise[];
+  onExerciseAdded: (exercise: Exercise) => void;
   onToggleFavorite: (exerciseId: string) => void;
   onSelect: (exercise: Exercise) => void;
 }
 
-export function ExercisePicker({ favoriteIds, equipment, onToggleFavorite, onSelect }: ExercisePickerProps) {
+export function ExercisePicker({
+  favoriteIds,
+  equipment,
+  sharedExercises,
+  onExerciseAdded,
+  onToggleFavorite,
+  onSelect,
+}: ExercisePickerProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [addingExercise, setAddingExercise] = useState(false);
+
+  const allExercises = useMemo(() => [...EXERCISES, ...sharedExercises], [sharedExercises]);
 
   const filtered = useMemo(() => {
-    let list = EXERCISES;
+    let list = allExercises;
     if (filter === "favorites") list = list.filter((e) => favoriteIds.includes(e.id));
     if (filter === "mygym" && equipment.length) list = list.filter((e) => equipment.includes(e.equipment));
     const q = query.trim().toLowerCase();
     if (q) list = list.filter((e) => e.nameKo.toLowerCase().includes(q) || e.name.toLowerCase().includes(q));
     return list;
-  }, [query, filter, favoriteIds, equipment]);
+  }, [allExercises, query, filter, favoriteIds, equipment]);
+
+  function handleExerciseSaved(exercise: Exercise) {
+    onExerciseAdded(exercise);
+    setAddingExercise(false);
+    onSelect(exercise);
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -83,8 +102,25 @@ export function ExercisePicker({ favoriteIds, equipment, onToggleFavorite, onSel
             </div>
           );
         })}
-        {filtered.length === 0 && (
-          <p className="py-4 text-center text-sm text-muted">검색 결과가 없어요.</p>
+        {filtered.length === 0 && !addingExercise && (
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-input-border py-4 text-center">
+            <p className="text-xs text-muted">
+              {query.trim() ? `'${query.trim()}'에 대한 검색 결과가 없어요.` : "검색 결과가 없어요."}
+            </p>
+            <button
+              onClick={() => setAddingExercise(true)}
+              className="rounded-full border border-brand px-4 py-2 text-xs font-bold text-brand"
+            >
+              수동으로 추가하기
+            </button>
+          </div>
+        )}
+        {addingExercise && (
+          <ManualExerciseAdd
+            initialName={query.trim()}
+            onCancel={() => setAddingExercise(false)}
+            onSaved={handleExerciseSaved}
+          />
         )}
       </div>
     </div>

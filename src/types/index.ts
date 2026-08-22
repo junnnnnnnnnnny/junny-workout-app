@@ -7,6 +7,7 @@
 //   fridgeItems/{id}         -> FridgeItem
 //   inbodyRecords/{id}       -> InbodyRecord
 // foods/{id}                 -> FoodDbItem (top-level, 전체 사용자 공유 음식 DB; src/data/foods.ts 참고)
+// exercises/{id}              -> Exercise (top-level, 전체 사용자 공유 운동 DB; src/data/exercises.ts 참고)
 
 export type GoalMode = "calorie" | "protein" | "both";
 export type Sex = "male" | "female";

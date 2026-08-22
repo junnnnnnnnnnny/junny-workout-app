@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   getGoal,
   getGymSettings,
+  getSharedExercises,
   getUserProfile,
   restartOnboarding,
   saveGoal,
@@ -16,7 +17,7 @@ import {
 import { getExerciseById } from "@/data/exercises";
 import { GoalForm } from "@/components/goals/GoalForm";
 import { postJson } from "@/lib/api-client";
-import type { Goal, GymSettings, Sex, UserProfile } from "@/types";
+import type { Exercise, Goal, GymSettings, Sex, UserProfile } from "@/types";
 
 const EQUIPMENT_OPTIONS = ["바벨", "덤벨", "머신", "케이블", "맨몸"];
 
@@ -31,6 +32,14 @@ export default function AdminPage() {
   const [goalSaved, setGoalSaved] = useState(false);
   const [seedingFoods, setSeedingFoods] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [sharedExercises, setSharedExercises] = useState<Exercise[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    getSharedExercises()
+      .then(setSharedExercises)
+      .catch((err) => console.error("failed to load shared exercises", err));
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -116,7 +125,7 @@ export default function AdminPage() {
   }
 
   const favoriteExercises = gymSettings.favoriteExerciseIds
-    .map((id) => getExerciseById(id))
+    .map((id) => getExerciseById(id) ?? sharedExercises.find((e) => e.id === id))
     .filter((ex): ex is NonNullable<typeof ex> => !!ex);
 
   return (

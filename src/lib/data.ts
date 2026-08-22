@@ -16,6 +16,7 @@ import {
 import { db } from "@/lib/firebase/client";
 import type {
   DietLog,
+  Exercise,
   FridgeItem,
   Goal,
   GymSettings,
@@ -324,4 +325,33 @@ export async function addSharedFood(uid: string, food: FoodDbItem): Promise<void
     createdBy: uid,
     createdAt: serverTimestamp(),
   });
+}
+
+// ---------- 공통 운동 데이터베이스 (모든 사용자가 함께 쓰는 top-level 컬렉션) ----------
+
+export async function getSharedExercises(): Promise<Exercise[]> {
+  const q = query(collection(db, "exercises"), orderBy("nameKo", "asc"), limit(500));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      name: data.name,
+      nameKo: data.nameKo,
+      muscleGroups: data.muscleGroups,
+      equipment: data.equipment,
+    } as Exercise;
+  });
+}
+
+export async function addSharedExercise(
+  uid: string,
+  exercise: Omit<Exercise, "id">
+): Promise<Exercise> {
+  const ref = await addDoc(collection(db, "exercises"), {
+    ...exercise,
+    createdBy: uid,
+    createdAt: serverTimestamp(),
+  });
+  return { id: ref.id, ...exercise };
 }

@@ -6,6 +6,7 @@ import {
   addWorkoutLog,
   getGymSettings,
   getRecentWorkoutLogsForExercise,
+  getSharedExercises,
   getWorkoutLogsForDate,
   getWorkoutLogsForDateRange,
   toggleFavoriteExercise,
@@ -37,10 +38,18 @@ export default function WorkoutsPage() {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [editingLog, setEditingLog] = useState<WorkoutLog | null>(null);
   const [recentLogs, setRecentLogs] = useState<WorkoutLog[]>([]);
+  const [sharedExercises, setSharedExercises] = useState<Exercise[]>([]);
 
   useEffect(() => {
     if (!user) return;
     getGymSettings(user.uid).then(setGymSettings);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    getSharedExercises()
+      .then(setSharedExercises)
+      .catch((err) => console.error("failed to load shared exercises", err));
   }, [user]);
 
   useEffect(() => {
@@ -103,7 +112,9 @@ export default function WorkoutsPage() {
   }
 
   function editEntry(entry: WorkoutLog) {
-    const ex = entry.exerciseId ? getExerciseById(entry.exerciseId) : undefined;
+    const ex = entry.exerciseId
+      ? (getExerciseById(entry.exerciseId) ?? sharedExercises.find((e) => e.id === entry.exerciseId))
+      : undefined;
     if (!ex) return;
     setSelectedExercise(ex);
     setEditingLog(entry);
@@ -173,6 +184,8 @@ export default function WorkoutsPage() {
           <ExercisePicker
             favoriteIds={gymSettings.favoriteExerciseIds}
             equipment={gymSettings.equipment}
+            sharedExercises={sharedExercises}
+            onExerciseAdded={(ex) => setSharedExercises((prev) => [ex, ...prev])}
             onToggleFavorite={toggleFavorite}
             onSelect={selectExercise}
           />
